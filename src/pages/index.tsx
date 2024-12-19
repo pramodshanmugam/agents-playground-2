@@ -92,18 +92,7 @@ export function HomeInner() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
       <main className="relative flex flex-col justify-center px-4 items-center h-full w-full bg-white repeating-square-background">
-        <h1 className="text-3xl mt-44 font-bold text-[#628e3d]">
-          <a href="https://images.squarespace-cdn.com/content/v1/6195b781b8f5b60659d7a41e/e81a10ae-321f-4cf6-8fb1-b6757d197f37/Untitled+design.png?format=1500w">
-            <Image
-              src={Image1}
-              alt="Logo"
-              width={400}
-              height={400}
-              className="object-contain"
-            />
-          </a>
-          Welcome to Greenlight Interview
-        </h1>
+     
         <AnimatePresence>
           {toastMessage && (
             <motion.div

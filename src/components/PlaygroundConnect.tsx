@@ -3,6 +3,8 @@ import { CLOUD_ENABLED, CloudConnect } from "../cloud/CloudConnect";
 import { Button } from "./button/Button";
 import { useState } from "react";
 import { ConnectionMode } from "@/hooks/useConnection";
+import Image from "next/image";
+import Image1 from "../../public/Untitled+design.png";
 
 type PlaygroundConnectProps = {
   accentColor: string;
@@ -77,13 +79,23 @@ export const PlaygroundConnect = ({
     ? "Connect to playground with LiveKit Cloud or manually with a URL and token"
     : "Connect to playground with a URL and token";
   return (
-    
     <div className="flex left-0 top-12 mt-24 w-full h-full bg-black/80items-center justify-center text-center gap-2">
       <div className="min-h-[620px]">
         <div className="flex flex-col bg-gray-950 w-full max-w-[480px] rounded-lg text-white border border-gray-900">
           <div className="flex flex-col gap-2">
             <div className="px-10 space-y-2 py-6">
-              <h1 className="text-xl">Start The Interview Below By Entering Details</h1>
+            <h1 className="text-3xl font-bold text-white">
+          <a href="https://images.squarespace-cdn.com/content/v1/6195b781b8f5b60659d7a41e/e81a10ae-321f-4cf6-8fb1-b6757d197f37/Untitled+design.png?format=1500w">
+            <Image
+              src={Image1}
+              alt="Logo"
+              width={400}
+              height={400}
+              className="object-contain"
+            />
+          </a>
+          Welcome to Greenlight Interview
+        </h1>
             </div>
             {CLOUD_ENABLED && (
               <div className="flex justify-center pt-2 gap-4 border-b border-t border-gray-900">
