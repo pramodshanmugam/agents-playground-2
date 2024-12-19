@@ -77,12 +77,13 @@ export const PlaygroundConnect = ({
     ? "Connect to playground with LiveKit Cloud or manually with a URL and token"
     : "Connect to playground with a URL and token";
   return (
-    <div className="flex left-0 top-0 w-full h-full bg-black/80items-center justify-center text-center gap-2">
-      <div className="min-h-[540px]">
+    
+    <div className="flex left-0 top-12 mt-24 w-full h-full bg-black/80items-center justify-center text-center gap-2">
+      <div className="min-h-[620px]">
         <div className="flex flex-col bg-gray-950 w-full max-w-[480px] rounded-lg text-white border border-gray-900">
           <div className="flex flex-col gap-2">
             <div className="px-10 space-y-2 py-6">
-              <h1 className="text-2xl">Welcome to Greenlight Interview</h1>
+              <h1 className="text-xl">Start The Interview Below By Entering Details</h1>
             </div>
             {CLOUD_ENABLED && (
               <div className="flex justify-center pt-2 gap-4 border-b border-t border-gray-900">
