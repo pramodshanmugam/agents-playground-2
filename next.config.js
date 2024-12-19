@@ -7,3 +7,10 @@ const nextConfig = {
 };
 
 module.exports = withNextPluginPreval(nextConfig);
+
+module.exports = {
+  images: {
+    domains: ["images.squarespace-cdn.com"], // Add the hostname here
+  },
+};
+

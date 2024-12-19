@@ -35,19 +35,19 @@ export const PlaygroundDeviceSelector = ({
   return (
     <div>
       <button
-        className="flex gap-2 items-center px-2 py-1 bg-gray-900 text-gray-300 border border-gray-800 rounded-sm hover:bg-gray-800"
+        className="flex gap-2 items-center px-2 py-1 bg-[#628e3d] text-white  rounded-2xl hover:bg-gray-500"
         onClick={(e) => {
           setShowMenu(!showMenu);
           e.stopPropagation();
         }}
       >
-        <span className="max-w-[80px] overflow-ellipsis overflow-hidden whitespace-nowrap">
+        <span className="max-w-[80px] overflow-ellipsis overflow-hidden whitespace-nowrap bg-[#628e3d] text-white  rounded-2xl hover:bg-gray-500 ">
           {selectedDeviceName}
         </span>
         <ChevronSVG />
       </button>
       <div
-        className="absolute right-4 top-12 bg-gray-800 text-gray-300 border border-gray-800 rounded-sm z-10"
+        className="absolute right-4 top-12 bg-[#628e3d] text-white  rounded-2xl hover:bg-gray-500 z-10"
         style={{
           display: showMenu ? "block" : "none",
         }}

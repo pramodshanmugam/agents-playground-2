@@ -37,13 +37,14 @@ export type UserSettings = {
 };
 
 // Fallback if NEXT_PUBLIC_APP_CONFIG is not set
+// Fallback if NEXT_PUBLIC_APP_CONFIG is not set
 const defaultConfig: AppConfig = {
   title: "Green Light AI Platform",
   description: "Welcome to GreenLight AI Interview Platform",
   video_fit: "cover",
   settings: {
     editable: true,
-    theme_color: "cyan",
+    theme_color: "#628e3d", // Updated color
     chat: true,
     inputs: {
       camera: true,
@@ -58,6 +59,7 @@ const defaultConfig: AppConfig = {
   },
   show_qr: false,
 };
+
 
 const useAppConfig = (): AppConfig => {
   return useMemo(() => {

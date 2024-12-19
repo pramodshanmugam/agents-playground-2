@@ -9,7 +9,7 @@ export const CheckIcon = () => (
     <g clipPath="url(#clip0_718_9977)">
       <path
         d="M1.5 7.5L4.64706 10L10.5 2"
-        stroke="white"
+        stroke="#628e3d"  // Changed stroke color to #628e3d
         strokeWidth="1.5"
         strokeLinecap="square"
       />
@@ -22,13 +22,14 @@ export const CheckIcon = () => (
   </svg>
 );
 
+
 export const ChevronIcon = () => (
   <svg
     width="16"
     height="16"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    className="fill-gray-200 transition-all group-hover:fill-white group-data-[state=open]:rotate-180"
+    className="fill-[#628e3d] transition-all group-hover:fill-white group-data-[state=open]:rotate-180" // Changed fill color to #628e3d
   >
     <path
       fillRule="evenodd"
@@ -37,3 +38,4 @@ export const ChevronIcon = () => (
     />
   </svg>
 );
+
