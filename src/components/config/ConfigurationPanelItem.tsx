@@ -15,6 +15,7 @@ export const ConfigurationPanelItem: React.FC<ConfigurationPanelItemProps> = ({
   deviceSelectorKind,
 }) => {
   return (
+    
     <div className="w-full text-gray-300 py-4 border-b border-b-gray-800 relative">
       <div className="flex flex-row justify-between items-center px-4 text-xs uppercase tracking-wider">
         <h3 className=" text-[#628e3d] text-lg font-bold">{title}</h3>

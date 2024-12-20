@@ -14,15 +14,15 @@ export const ChatMessage = ({
 }: ChatMessageProps) => {
   return (
 <div className={`flex flex-col gap-1 ${hideName ? "pt-0" : "pt-6"}`}>
-  {!hideName && (
+  {/* {!hideName && (
     <div
       className="text-[#628e3d] uppercase text-md font-bold"
     >
       {name}
     </div>
-  )}
+  )} */}
   <div
-    className={`pr-4 text-gray-500 text-sm ${isSelf ? "" : "drop-shadow-[#628e3d]"} whitespace-pre-line`}
+    className={`pr-4 text-gray-500 text-md font-semibold ${isSelf ? "" : "drop-shadow-[#628e3d]"} whitespace-pre-line`}
   >
     {message}
   </div>

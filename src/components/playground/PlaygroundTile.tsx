@@ -23,7 +23,7 @@ export type PlaygroundTabbedTileProps = {
 } & PlaygroundTileProps;
 
 // PlaygroundTile component for rendering tiles with an optional title
-export const PlaygroundTile: React.FC<PlaygroundTileProps> = ({
+export const  PlaygroundTile: React.FC<PlaygroundTileProps> = ({
   children,
   title,
   className,
@@ -34,7 +34,7 @@ export const PlaygroundTile: React.FC<PlaygroundTileProps> = ({
   const contentPadding = padding ? 4 : 0;
   return (
     <div
-      className={`flex flex-col border rounded-sm  text-gray-500 bg-${backgroundColor} ${className}`}
+      className={`flex flex-col border rounded-md text-gray-500 bg-${backgroundColor} ${className}`}
     >
       {title && (
         <div
@@ -77,7 +77,7 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
 
   return (
     <div
-      className={`flex flex-col h-full border rounded-2xl border-[#628e3d] text-gray-500 bg-gray-300 ${className}`}
+      className={`flex flex-col h-full border rounded-2xl  border-[#628e3d] text-gray-500 bg-gray-300 ${className}`}
     >
       <div
         className="flex items-center justify-start text-sm uppercase border-b border-b-[#628e3d] tracking-wider"
