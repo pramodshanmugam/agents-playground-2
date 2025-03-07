@@ -37,14 +37,13 @@ export type UserSettings = {
 };
 
 // Fallback if NEXT_PUBLIC_APP_CONFIG is not set
-// Fallback if NEXT_PUBLIC_APP_CONFIG is not set
 const defaultConfig: AppConfig = {
-  title: "Green Light Ai Platform",
-  description: "Welcome to GreenLight AI Interview Platform",
+  title: "LiveKit Agents Playground",
+  description: "A playground for testing LiveKit Agents",
   video_fit: "cover",
   settings: {
     editable: true,
-    theme_color: "#628e3d", // Updated color
+    theme_color: "cyan",
     chat: true,
     inputs: {
       camera: true,
@@ -54,12 +53,11 @@ const defaultConfig: AppConfig = {
       audio: true,
       video: true,
     },
-    ws_url: "",
-    token: "",
+    ws_url: "wss://taxagent-93a9x17o.livekit.cloud",
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6ImFiYyIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJhdHRyaWJ1dGVzIjp7ImNhbmRpZGF0ZV9uYW1lIjoicHJhbW9kIiwiaW50ZXJ2aWV3X2Rpc3BsYXlfaWQiOiJhYmMiLCJhc3NpZ25tZW50X2lkIjoiYXNzaWdubWVudF9pZCIsInZpc2FfaWQiOiIxIn0sInJvb21Db25maWciOnsiYWdlbnRzIjpbeyJhZ2VudE5hbWUiOiJjYXJlZXJjb25uZWN0In1dfSwic3ViIjoicHJhbW9kIiwiaXNzIjoiQVBJQ1N0WmdMRms4N0g3IiwibmJmIjoxNzQxMzY1ODc4LCJleHAiOjE3NDEzODc0Nzh9.wcMiTkWkoP9sJD9oJayFckUmqBqm4WLA_QohHx0rmnc",
   },
   show_qr: false,
 };
-
 
 const useAppConfig = (): AppConfig => {
   return useMemo(() => {

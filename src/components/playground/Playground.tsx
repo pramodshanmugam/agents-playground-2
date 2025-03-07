@@ -2,6 +2,7 @@
 
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatMessageType } from "@/components/chat/ChatTile";
+import { ColorPicker } from "@/components/colorPicker/ColorPicker";
 import { AudioInputTile } from "@/components/config/AudioInputTile";
 import { ConfigurationPanelItem } from "@/components/config/ConfigurationPanelItem";
 import { NameValueRow } from "@/components/config/NameValueRow";
@@ -15,7 +16,6 @@ import { useConfig } from "@/hooks/useConfig";
 import { TranscriptionTile } from "@/transcriptions/TranscriptionTile";
 import {
   BarVisualizer,
-  TrackToggle,
   VideoTrack,
   useConnectionState,
   useDataChannel,
@@ -25,8 +25,9 @@ import {
   useVoiceAssistant,
 } from "@livekit/components-react";
 import { ConnectionState, LocalParticipant, Track } from "livekit-client";
+import { QRCodeSVG } from "qrcode.react";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { PlaygroundDeviceSelector } from "./PlaygroundDeviceSelector";
+import tailwindTheme from "../../lib/tailwindTheme.preval";
 
 export interface PlaygroundMeta {
   name: string;
@@ -55,11 +56,6 @@ export default function Playground({
 
   const roomState = useConnectionState();
   const tracks = useTracks();
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
-    null
-  );
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
     if (roomState === ConnectionState.Connected) {
@@ -84,77 +80,6 @@ export default function Playground({
     ({ source }) => source === Track.Source.Microphone
   );
 
-  const startRecording = () => {
-    const videoTrack = localVideoTrack?.publication.track?.mediaStreamTrack;
-    const audioTrack = localMicTrack?.publication.track?.mediaStreamTrack;
-
-    if (!videoTrack || !audioTrack) {
-      console.error("Camera or Microphone track is not available or active.");
-      return;
-    }
-
-    // Check if tracks are active
-    if (!videoTrack.enabled || !audioTrack.enabled) {
-      console.error("One of the tracks is disabled.");
-      return;
-    }
-
-    // Combine both tracks into a MediaStream
-    const combinedStream = new MediaStream([videoTrack, audioTrack]);
-
-    console.log("Combined Stream Tracks:", combinedStream.getTracks());
-
-    try {
-      const recorder = new MediaRecorder(combinedStream, {
-        mimeType: "video/mp4",
-      });
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log("Data available:", event.data.size); // Debugging line
-          setRecordedChunks((prev) => [...prev, event.data]);
-        }
-      };
-
-      recorder.onerror = (error) => {
-        console.error("MediaRecorder error:", error);
-      };
-
-      recorder.onstart = () => console.log("Recording started");
-      recorder.onstop = () => console.log("Recording stopped");
-
-      recorder.start(1000); // Request data every 1000ms to ensure chunks are collected
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-    } catch (e) {
-      console.error("Failed to start MediaRecorder:", e);
-    }
-  };
-
-  const stopRecording = async () => {
-    if (mediaRecorder) {
-      mediaRecorder.stop();
-      setIsRecording(false);
-
-      const videoBlob = new Blob(recordedChunks, { type: "video/webm" });
-      const formData = new FormData();
-      formData.append("file", videoBlob, "recording.webm");
-
-      try {
-        const response = await fetch("http://127.0.0.1:8080/upload-video/", {
-          method: "POST",
-          body: formData,
-        });
-
-        const result = await response.json();
-        console.log("Upload result:", result);
-      } catch (error) {
-        console.error("Error uploading video:", error);
-      }
-
-      setRecordedChunks([]);
-    }
-  };
   const onDataReceived = useCallback(
     (msg: any) => {
       if (msg.topic === "transcription") {
@@ -197,18 +122,18 @@ export default function Playground({
       </div>
     );
 
-    // const videoContent = (
-    //   <VideoTrack
-    //     trackRef={agentVideoTrack}
-    //     className={`absolute top-1/2 -translate-y-1/2 ${videoFitClassName} object-position-center w-full h-full`}
-    //   />
-    // );
+    const videoContent = (
+      <VideoTrack
+        trackRef={agentVideoTrack}
+        className={`absolute top-1/2 -translate-y-1/2 ${videoFitClassName} object-position-center w-full h-full`}
+      />
+    );
 
     let content = null;
     if (roomState === ConnectionState.Disconnected) {
       content = disconnectedContent;
-      // } else if (agentVideoTrack) {
-      // content = videoContent;
+    } else if (agentVideoTrack) {
+      content = videoContent;
     } else {
       content = loadingContent;
     }
@@ -220,16 +145,17 @@ export default function Playground({
     );
   }, [agentVideoTrack, config, roomState]);
 
-  // // useEffect(() => {
-  // //   document.body.style.setProperty(
-  // //     "--lk-theme-color",
-  // //     // @ts-ignore
-  // //   );
-  //   document.body.style.setProperty(
-  //     "--lk-drop-shadow",
-  //     `var(--lk-theme-color) 0px 0px 18px`
-  //   );
-  // }, [config.settings.theme_color]);
+  useEffect(() => {
+    document.body.style.setProperty(
+      "--lk-theme-color",
+      // @ts-ignore
+      tailwindTheme.colors[config.settings.theme_color]["500"]
+    );
+    document.body.style.setProperty(
+      "--lk-drop-shadow",
+      `var(--lk-theme-color) 0px 0px 18px`
+    );
+  }, [config.settings.theme_color]);
 
   const audioTileContent = useMemo(() => {
     const disconnectedContent = (
@@ -283,20 +209,19 @@ export default function Playground({
         />
       );
     }
-
     return <></>;
   }, [config.settings.theme_color, voiceAssistant.audioTrack]);
 
   const settingsTileContent = useMemo(() => {
     return (
       <div className="flex flex-col gap-4 h-full w-full items-start overflow-y-auto">
-        {/* {config.description && (
+        {config.description && (
           <ConfigurationPanelItem title="Description">
             {config.description}
           </ConfigurationPanelItem>
-        )} */}
+        )}
 
-        {/* <ConfigurationPanelItem title="Settings">
+        <ConfigurationPanelItem title="Settings">
           {localParticipant && (
             <div className="flex flex-col gap-2">
               <NameValueRow
@@ -310,35 +235,7 @@ export default function Playground({
               />
             </div>
           )}
-        </ConfigurationPanelItem> */}
-        {config.settings.chat && (
-          <ConfigurationPanelItem title="Agent">
-            {chatTileContent}
-          </ConfigurationPanelItem>
-        )}
-
-        {localMicTrack && (
-          <ConfigurationPanelItem
-            title="Voice Input"
-            deviceSelectorKind="audioinput"
-          >
-            <AudioInputTile trackRef={localMicTrack} />
-          </ConfigurationPanelItem>
-        )}
-
-        {/* <div className="w-full">
-          <ConfigurationPanelItem title="Color">
-            <ColorPicker
-              colors={themeColors}
-              selectedColor={config.settings.theme_color}
-              onSelect={(color) => {
-                const userSettings = { ...config.settings };
-                userSettings.theme_color = color;
-                setUserSettings(userSettings);
-              }}
-            />
-          </ConfigurationPanelItem>
-        </div> */}
+        </ConfigurationPanelItem>
         <ConfigurationPanelItem title="Status">
           <div className="flex flex-col gap-2">
             <NameValueRow
@@ -352,7 +249,7 @@ export default function Playground({
               }
               valueColor={
                 roomState === ConnectionState.Connected
-                  ? `[#628e3d] font-bold`
+                  ? `${config.settings.theme_color}-500`
                   : "gray-500"
               }
             />
@@ -367,10 +264,55 @@ export default function Playground({
                   "FALSE"
                 )
               }
-              valueColor={voiceAssistant.agent ? `[#628e3d] text` : "gray-500"}
+              valueColor={
+                voiceAssistant.agent
+                  ? `${config.settings.theme_color}-500`
+                  : "gray-500"
+              }
             />
           </div>
         </ConfigurationPanelItem>
+        {localVideoTrack && (
+          <ConfigurationPanelItem
+            title="Camera"
+            deviceSelectorKind="videoinput"
+          >
+            <div className="relative">
+              <VideoTrack
+                className="rounded-sm border border-gray-800 opacity-70 w-full"
+                trackRef={localVideoTrack}
+              />
+            </div>
+          </ConfigurationPanelItem>
+        )}
+        {localMicTrack && (
+          <ConfigurationPanelItem
+            title="Microphone"
+            deviceSelectorKind="audioinput"
+          >
+            <AudioInputTile trackRef={localMicTrack} />
+          </ConfigurationPanelItem>
+        )}
+        <div className="w-full">
+          <ConfigurationPanelItem title="Color">
+            <ColorPicker
+              colors={themeColors}
+              selectedColor={config.settings.theme_color}
+              onSelect={(color) => {
+                const userSettings = { ...config.settings };
+                userSettings.theme_color = color;
+                setUserSettings(userSettings);
+              }}
+            />
+          </ConfigurationPanelItem>
+        </div>
+        {config.show_qr && (
+          <div className="w-full">
+            <ConfigurationPanelItem title="QR Code">
+              <QRCodeSVG value={window.location.href} width="128" />
+            </ConfigurationPanelItem>
+          </div>
+        )}
       </div>
     );
   }, [
@@ -397,25 +339,6 @@ export default function Playground({
           childrenClassName="justify-center"
         >
           {videoTileContent}
-          {isRecording ? (
-            <div className="absolute top-4 right-4">
-              <button
-                className="bg-red-500 text-white px-4 py-2 rounded"
-                onClick={stopRecording}
-              >
-                Stop Recording
-              </button>
-            </div>
-          ) : (
-            <div className="absolute top-4 right-4">
-              <button
-                className="bg-green-500 text-white px-4 py-2 rounded"
-                onClick={startRecording}
-              >
-                Start Recording
-              </button>
-            </div>
-          )}
         </PlaygroundTile>
       ),
     });
@@ -461,6 +384,7 @@ export default function Playground({
       <PlaygroundHeader
         title={config.title}
         logo={logo}
+        githubLink={config.github_link}
         height={headerHeight}
         accentColor={config.settings.theme_color}
         connectionState={roomState}
@@ -469,61 +393,24 @@ export default function Playground({
         }
       />
       <div
-        className={`flex gap-4 py-4 grow w-full selection:bg-white`}
+        className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`}
         style={{ height: `calc(100% - ${headerHeight}px)` }}
       >
-        <div className="flex flex-col grow basis-1/2 h-full lg:hidden">
+        <div className="flex flex-col grow basis-1/2 gap-4 h-full lg:hidden">
           <PlaygroundTabbedTile
-            className="h-flex"
+            className="h-full"
             tabs={mobileTabs}
             initialTab={mobileTabs.length - 1}
           />
         </div>
         <div
-          className={`flex-col grow basis-1/2  h-full hidden bg-white rounded-2xl lg:${
+          className={`flex-col grow basis-1/2 gap-4 h-full hidden lg:${
             !config.settings.outputs.audio && !config.settings.outputs.video
               ? "hidden"
               : "flex"
           }`}
         >
-          {localVideoTrack && (
-            <div className="relative">
-              <VideoTrack
-                className="rounded-md border border-gray-800 opacity-70 overflow-hidden w-full h-full object-cover"
-                trackRef={localVideoTrack}
-              />
-
-              <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-2 bg-gradient-to-t from-black/20 via-transparent to-transparent">
-                <h3 className="text-white text-lg font-bold">{"Candidate"}</h3>
-
-                <span className="flex flex-row gap-2">
-                  <TrackToggle
-                    className="px-2  bg-[#628e3d] text-gray-300 border   border-gray-800 rounded-2xl hover:bg-gray-500"
-                    source={Track.Source.Camera}
-                  />
-
-                  <PlaygroundDeviceSelector kind="videoinput" />
-                  {isRecording ? (
-                    <button
-                      className="bg-red-500 text-white px-4 py-1 rounded-2xl "
-                      onClick={stopRecording}
-                    >
-                      Stop Recording
-                    </button>
-                  ) : (
-                    <button
-                      className="bg-[#628e3d] text-white px-4 py-1 rounded-2xl "
-                      onClick={startRecording}
-                    >
-                      Start Recording
-                    </button>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* {config.settings.outputs.video && (
+          {config.settings.outputs.video && (
             <PlaygroundTile
               title="Video"
               className="w-full h-full grow"
@@ -531,8 +418,8 @@ export default function Playground({
             >
               {videoTileContent}
             </PlaygroundTile>
-          )} */}
-          {/* {config.settings.outputs.audio && (
+          )}
+          {config.settings.outputs.audio && (
             <PlaygroundTile
               title="Audio"
               className="w-full h-full grow"
@@ -540,12 +427,21 @@ export default function Playground({
             >
               {audioTileContent}
             </PlaygroundTile>
-          )} */}
+          )}
         </div>
+
+        {config.settings.chat && (
+          <PlaygroundTile
+            title="Chat"
+            className="h-full grow basis-1/4 hidden lg:flex"
+          >
+            {chatTileContent}
+          </PlaygroundTile>
+        )}
         <PlaygroundTile
           padding={false}
-          backgroundColor="white"
-          className="h-full w-full basis-1/4 items-start overflow-y-auto hidden max-w-[480px] lg:flex rounded-md "
+          backgroundColor="gray-950"
+          className="h-full w-full basis-1/4 items-start overflow-y-auto hidden max-w-[480px] lg:flex"
           childrenClassName="h-full grow items-start"
         >
           {settingsTileContent}

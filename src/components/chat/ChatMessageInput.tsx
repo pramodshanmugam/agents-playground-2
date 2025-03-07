@@ -79,7 +79,7 @@ export const ChatMessageInput = ({
         ></div>
         <input
           ref={inputRef}
-          className={`w-full text-xs caret-transparent bg-transparent opacity-80 text-[#628e3d] font-bold p-2 pr-6 rounded-sm focus:opacity-100 focus:outline-none focus:border-[#628e3d] focus:ring-1 focus:ring-[#628e3d]`}
+          className={`w-full text-xs caret-transparent bg-transparent opacity-25 text-gray-300 p-2 pr-6 rounded-sm focus:opacity-100 focus:outline-none focus:border-${accentColor}-700 focus:ring-1 focus:ring-${accentColor}-700`}
           style={{
             paddingLeft: message.length > 0 ? "12px" : "24px",
             caretShape: "block",
@@ -103,14 +103,14 @@ export const ChatMessageInput = ({
         ></input>
         <span
           ref={hiddenInputRef}
-          className="absolute top-0 left-0 text-xs pl-3 text-[#628e3d] pointer-events-none opacity-0"
+          className="absolute top-0 left-0 text-xs pl-3 text-amber-500 pointer-events-none opacity-0"
         >
           {message.replaceAll(" ", "\u00a0")}
         </span>
         <button
           disabled={message.length === 0 || !onSend}
           onClick={handleSend}
-          className={`text-xs uppercase text-[#628e3d] font-bold hover:bg-gray-300 p-2 rounded-md opacity-${
+          className={`text-xs uppercase text-${accentColor}-500 hover:bg-${accentColor}-950 p-2 rounded-md opacity-${
             message.length > 0 ? 100 : 25
           } pointer-events-${message.length > 0 ? "auto" : "none"}`}
         >

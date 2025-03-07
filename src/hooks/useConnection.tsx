@@ -32,7 +32,7 @@ export const ConnectionProvider = ({
     token: string;
     mode: ConnectionMode;
     shouldConnect: boolean;
-  }>({ wsUrl: "", token: "", shouldConnect: false, mode: "manual" });
+  }>({ wsUrl: "wss://taxagent-93a9x17o.livekit.cloud", token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ2aWRlbyI6eyJyb29tSm9pbiI6dHJ1ZSwicm9vbSI6ImFiYyIsImNhblB1Ymxpc2giOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWV9LCJhdHRyaWJ1dGVzIjp7ImNhbmRpZGF0ZV9uYW1lIjoicHJhbW9kIiwiaW50ZXJ2aWV3X2Rpc3BsYXlfaWQiOiJhYmMiLCJhc3NpZ25tZW50X2lkIjoiYXNzaWdubWVudF9pZCIsInZpc2FfaWQiOiIxIn0sInJvb21Db25maWciOnsiYWdlbnRzIjpbeyJhZ2VudE5hbWUiOiJjYXJlZXJjb25uZWN0In1dfSwic3ViIjoicHJhbW9kIiwiaXNzIjoiQVBJQ1N0WmdMRms4N0g3IiwibmJmIjoxNzQxMzY1ODc4LCJleHAiOjE3NDEzODc0Nzh9.wcMiTkWkoP9sJD9oJayFckUmqBqm4WLA_QohHx0rmnc", shouldConnect: false, mode: "manual" });
 
   const connect = useCallback(
     async (mode: ConnectionMode) => {

@@ -86,15 +86,15 @@ export const SettingsDropdown = () => {
 
   return (
     <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger className="group inline-flex max-h-12 items-center gap-1 rounded-md hover:bg-gray-500 bg-[#628e3d] border-gray-800 p-1 pr-2 text-gray-100">
-        <button className="my-auto text-sm flex gap-1 ml-2 pl-2 py-1 h-full items-center bg-[#628e3d] hover:bg-gray-500">
+      <DropdownMenu.Trigger className="group inline-flex max-h-12 items-center gap-1 rounded-md hover:bg-gray-800 bg-gray-900 border-gray-800 p-1 pr-2 text-gray-100">
+        <button className="my-auto text-sm flex gap-1 pl-2 py-1 h-full items-center">
           Settings
           <ChevronIcon />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          className="z-50 flex w-60 flex-col gap-0 overflow-hidden rounded-2xl text-gray-100 bg-gray-200 border-gray-800  py-2 text-sm"
+          className="z-50 flex w-60 flex-col gap-0 overflow-hidden rounded text-gray-100 border border-gray-800 bg-gray-900 py-2 text-sm"
           sideOffset={5}
           collisionPadding={16}
         >
@@ -110,17 +110,15 @@ export const SettingsDropdown = () => {
 
             return (
               <DropdownMenu.Label
-              key={setting.key}
-              onClick={() => toggleSetting(setting)}
-              className="flex max-w-full flex-row items-end gap-2 px-3 py-2 text-xs text-[#628e3d] hover:bg-gray-300 hover:text-white cursor-pointer bg-gray-200 transition-colors"
-            >
-            
-              <div className="w-4 h-4 flex items-center">
-                {isEnabled(setting) && <CheckIcon />}
-              </div>
-              <span className="text-[#628e3d]">{setting.title}</span>
-            </DropdownMenu.Label>
-            
+                key={setting.key}
+                onClick={() => toggleSetting(setting)}
+                className="flex max-w-full flex-row items-end gap-2 px-3 py-2 text-xs hover:bg-gray-800 cursor-pointer"
+              >
+                <div className="w-4 h-4 flex items-center">
+                  {isEnabled(setting) && <CheckIcon />}
+                </div>
+                <span>{setting.title}</span>
+              </DropdownMenu.Label>
             );
           })}
         </DropdownMenu.Content>
