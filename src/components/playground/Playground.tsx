@@ -1,5 +1,19 @@
 "use client";
 
+// --- REACT & ANAM IMPORTS ---
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  useCallback,
+} from "react";
+import {
+  AnamClient,
+  unsafe_createClientWithApiKey,
+} from "@anam-ai/js-sdk";
+
+// --- LIVEKIT & YOUR COMPONENT IMPORTS ---
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatMessageType } from "@/components/chat/ChatTile";
 import { ColorPicker } from "@/components/colorPicker/ColorPicker";
@@ -26,7 +40,6 @@ import {
 } from "@livekit/components-react";
 import { ConnectionState, LocalParticipant, Track } from "livekit-client";
 import { QRCodeSVG } from "qrcode.react";
-import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
 
 export interface PlaygroundMeta {
@@ -35,12 +48,73 @@ export interface PlaygroundMeta {
 }
 
 export interface PlaygroundProps {
-  logo?: ReactNode;
+  logo?: React.ReactNode;
   themeColors: string[];
   onConnect: (connect: boolean, opts?: { token: string; url: string }) => void;
 }
 
 const headerHeight = 56;
+
+/**
+ * A SMALL HOOK FOR ANAM CLIENT
+ */
+function useAnamClient() {
+  const API_KEY =
+    "ODhhYzA4M2EtMjRmYy00NTk0LTkxNWQtM2I4MmJlYWFlNGQ1OnNuWmV6b3NxYW8rMm5zRklxNTFOMzdkRWd4YVBVNHVGcnFSQnVqRUtNOXM9";
+  const PERSONA_ID = "1a5588b4-a717-468c-ad8b-03b323e78e78";
+
+  const anamClientRef = useRef<AnamClient | null>(null);
+
+  useEffect(() => {
+    if (anamClientRef.current) return;
+    const client = unsafe_createClientWithApiKey(API_KEY, {
+      personaId: PERSONA_ID,
+      disableBrains: true,
+    });
+    anamClientRef.current = client;
+
+    const onConnectionEstablished = () => {
+      console.log("[Anam] CONNECTION_ESTABLISHED; can safely talk now.");
+      // Test immediate greeting
+      anamClientRef.current?.talk("Hello from Anam avatar!");
+    };
+    client.addListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
+
+    return () => {
+      client.removeListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
+    };
+  }, []);
+
+  async function startStreaming(videoId: string, audioId: string) {
+    try {
+      if (!anamClientRef.current) return;
+      console.log("[Anam] Starting stream...");
+      await anamClientRef.current.streamToVideoAndAudioElements(videoId, audioId);
+      console.log("[Anam] Stream started successfully.");
+    } catch (error) {
+      console.error("[Anam] Failed to start streaming:", error);
+    }
+  }
+
+  function stopStreaming() {
+    if (!anamClientRef.current) return;
+    anamClientRef.current.stopStreaming().catch((err) => {
+      console.error("[Anam] Failed to stop streaming:", err);
+    });
+  }
+
+  function talk(text: string) {
+    if (!anamClientRef.current) return;
+    console.log("[Anam] talk() called with text:", text);
+    anamClientRef.current.talk(text);
+  }
+
+  return {
+    startStreaming,
+    stopStreaming,
+    talk,
+  };
+}
 
 export default function Playground({
   logo,
@@ -51,11 +125,71 @@ export default function Playground({
   const { name } = useRoomInfo();
   const [transcripts, setTranscripts] = useState<ChatMessageType[]>([]);
   const { localParticipant } = useLocalParticipant();
-
   const voiceAssistant = useVoiceAssistant();
-
   const roomState = useConnectionState();
   const tracks = useTracks();
+
+  const { startStreaming, stopStreaming, talk } = useAnamClient();
+
+  const [hasStarted, setHasStarted] = useState(false);
+
+  useEffect(() => {
+    if (!hasStarted) {
+      setHasStarted(true);
+      startStreaming("anam-video", "anam-audio");
+    }
+    return () => {
+      // Comment out if you want the avatar to persist
+      // stopStreaming();
+    };
+  }, [hasStarted, startStreaming, stopStreaming]);
+
+  const onDataReceived = useCallback(
+    (msg: any) => {
+      if (!msg || !msg.topic || !msg.payload) return;
+
+      if (msg.topic === "transcription") {
+        const decoded = JSON.parse(
+          new TextDecoder("utf-8").decode(msg.payload)
+        );
+        let timestamp = new Date().getTime();
+        if ("timestamp" in decoded && decoded.timestamp > 0) {
+          timestamp = decoded.timestamp;
+        }
+        setTranscripts((prev) => [
+          ...prev,
+          {
+            name: "You",
+            message: decoded.text,
+            timestamp,
+            isSelf: true,
+          },
+        ]);
+      }
+
+      if (msg.topic === "agentTranscription") {
+        const decoded = JSON.parse(
+          new TextDecoder("utf-8").decode(msg.payload)
+        );
+        const agentText = decoded.text;
+        console.log("Agent transcript received:", agentText);
+        setTranscripts((prev) => [
+          ...prev,
+          {
+            name: "Agent",
+            message: agentText,
+            timestamp: Date.now(),
+            isSelf: false,
+          },
+        ]);
+        // Now speak via Anam (only calling talk() once with the agent transcript)
+        talk(agentText);
+      }
+    },
+    [talk]
+  );
+
+  useDataChannel(onDataReceived);
 
   useEffect(() => {
     if (roomState === ConnectionState.Connected) {
@@ -79,32 +213,6 @@ export default function Playground({
   const localMicTrack = localTracks.find(
     ({ source }) => source === Track.Source.Microphone
   );
-
-  const onDataReceived = useCallback(
-    (msg: any) => {
-      if (msg.topic === "transcription") {
-        const decoded = JSON.parse(
-          new TextDecoder("utf-8").decode(msg.payload)
-        );
-        let timestamp = new Date().getTime();
-        if ("timestamp" in decoded && decoded.timestamp > 0) {
-          timestamp = decoded.timestamp;
-        }
-        setTranscripts([
-          ...transcripts,
-          {
-            name: "You",
-            message: decoded.text,
-            timestamp: timestamp,
-            isSelf: true,
-          },
-        ]);
-      }
-    },
-    [transcripts]
-  );
-
-  useDataChannel(onDataReceived);
 
   const videoTileContent = useMemo(() => {
     const videoFitClassName = `object-${config.video_fit || "cover"}`;
@@ -143,7 +251,7 @@ export default function Playground({
         {content}
       </div>
     );
-  }, [agentVideoTrack, config, roomState]);
+  }, [agentVideoTrack, config.video_fit, roomState]);
 
   useEffect(() => {
     document.body.style.setProperty(
@@ -173,7 +281,11 @@ export default function Playground({
 
     const visualizerContent = (
       <div
-        className={`flex items-center justify-center w-full h-48 [--lk-va-bar-width:30px] [--lk-va-bar-gap:20px] [--lk-fg:var(--lk-theme-color)]`}
+        className={`
+          flex items-center justify-center w-full h-48
+          [--lk-va-bar-width:30px] [--lk-va-bar-gap:20px]
+          [--lk-fg:var(--lk-theme-color)]
+        `}
       >
         <BarVisualizer
           state={voiceAssistant.state}
@@ -209,7 +321,7 @@ export default function Playground({
         />
       );
     }
-    return <></>;
+    return null;
   }, [config.settings.theme_color, voiceAssistant.audioTrack]);
 
   const settingsTileContent = useMemo(() => {
@@ -236,6 +348,7 @@ export default function Playground({
             </div>
           )}
         </ConfigurationPanelItem>
+
         <ConfigurationPanelItem title="Status">
           <div className="flex flex-col gap-2">
             <NameValueRow
@@ -272,6 +385,7 @@ export default function Playground({
             />
           </div>
         </ConfigurationPanelItem>
+
         {localVideoTrack && (
           <ConfigurationPanelItem
             title="Camera"
@@ -285,6 +399,7 @@ export default function Playground({
             </div>
           </ConfigurationPanelItem>
         )}
+
         {localMicTrack && (
           <ConfigurationPanelItem
             title="Microphone"
@@ -293,25 +408,23 @@ export default function Playground({
             <AudioInputTile trackRef={localMicTrack} />
           </ConfigurationPanelItem>
         )}
-        <div className="w-full">
-          <ConfigurationPanelItem title="Color">
-            <ColorPicker
-              colors={themeColors}
-              selectedColor={config.settings.theme_color}
-              onSelect={(color) => {
-                const userSettings = { ...config.settings };
-                userSettings.theme_color = color;
-                setUserSettings(userSettings);
-              }}
-            />
-          </ConfigurationPanelItem>
-        </div>
+
+        <ConfigurationPanelItem title="Color">
+          <ColorPicker
+            colors={themeColors}
+            selectedColor={config.settings.theme_color}
+            onSelect={(color) => {
+              const userSettings = { ...config.settings };
+              userSettings.theme_color = color;
+              setUserSettings(userSettings);
+            }}
+          />
+        </ConfigurationPanelItem>
+
         {config.show_qr && (
-          <div className="w-full">
-            <ConfigurationPanelItem title="QR Code">
-              <QRCodeSVG value={window.location.href} width="128" />
-            </ConfigurationPanelItem>
-          </div>
+          <ConfigurationPanelItem title="QR Code">
+            <QRCodeSVG value={window.location.href} width="128" />
+          </ConfigurationPanelItem>
         )}
       </div>
     );
@@ -343,7 +456,6 @@ export default function Playground({
       ),
     });
   }
-
   if (config.settings.outputs.audio) {
     mobileTabs.push({
       title: "Audio",
@@ -357,14 +469,12 @@ export default function Playground({
       ),
     });
   }
-
   if (config.settings.chat) {
     mobileTabs.push({
       title: "Chat",
-      content: chatTileContent,
+      content: chatTileContent ?? null,
     });
   }
-
   mobileTabs.push({
     title: "Settings",
     content: (
@@ -381,6 +491,9 @@ export default function Playground({
 
   return (
     <>
+      <video id="anam-video" autoPlay playsInline />
+      <audio id="anam-audio" autoPlay style={{ display: "none" }} />
+
       <PlaygroundHeader
         title={config.title}
         logo={logo}
@@ -392,6 +505,7 @@ export default function Playground({
           onConnect(roomState === ConnectionState.Disconnected)
         }
       />
+
       <div
         className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`}
         style={{ height: `calc(100% - ${headerHeight}px)` }}
@@ -403,6 +517,7 @@ export default function Playground({
             initialTab={mobileTabs.length - 1}
           />
         </div>
+
         <div
           className={`flex-col grow basis-1/2 gap-4 h-full hidden lg:${
             !config.settings.outputs.audio && !config.settings.outputs.video
@@ -419,6 +534,7 @@ export default function Playground({
               {videoTileContent}
             </PlaygroundTile>
           )}
+
           {config.settings.outputs.audio && (
             <PlaygroundTile
               title="Audio"
@@ -438,6 +554,7 @@ export default function Playground({
             {chatTileContent}
           </PlaygroundTile>
         )}
+
         <PlaygroundTile
           padding={false}
           backgroundColor="gray-950"
