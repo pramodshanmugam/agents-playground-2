@@ -5,22 +5,25 @@ import {
   useLocalParticipant,
   useTrackTranscription,
 } from "@livekit/components-react";
-import { on } from "events";
 import {
   LocalParticipant,
   Participant,
   Track,
   TranscriptionSegment,
 } from "livekit-client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+
+export interface TranscriptionTileProps {
+  agentAudioTrack: TrackReferenceOrPlaceholder;
+  accentColor: string;
+  onAgentTranscript?: (text: string) => void;
+}
 
 export function TranscriptionTile({
   agentAudioTrack,
   accentColor,
-}: {
-  agentAudioTrack: TrackReferenceOrPlaceholder;
-  accentColor: string;
-}) {
+  onAgentTranscript,
+}: TranscriptionTileProps) {
   const agentMessages = useTrackTranscription(agentAudioTrack);
   const localParticipant = useLocalParticipant();
   const localMessages = useTrackTranscription({
@@ -29,20 +32,13 @@ export function TranscriptionTile({
     participant: localParticipant.localParticipant,
   });
 
-  const [transcripts, setTranscripts] = useState<Map<string, ChatMessageType>>(
-    new Map()
-  );
+  const [transcripts, setTranscripts] = useState<Map<string, ChatMessageType>>(new Map());
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const { chatMessages, send: sendChat } = useChat();
 
-  // function to handle transcript
-  function onTranscript(message: string) {
-    console.log("Transcript received:", message);
-  }
-
-  // store transcripts
+  // Update transcripts map from agent and local segments.
   useEffect(() => {
-    agentMessages.segments.forEach((s) =>
+    agentMessages.segments.forEach((s) => {
       transcripts.set(
         s.id,
         segmentToChatMessage(
@@ -50,9 +46,9 @@ export function TranscriptionTile({
           transcripts.get(s.id),
           agentAudioTrack.participant
         )
-      )
-    );
-    localMessages.segments.forEach((s) =>
+      );
+    });
+    localMessages.segments.forEach((s) => {
       transcripts.set(
         s.id,
         segmentToChatMessage(
@@ -60,8 +56,8 @@ export function TranscriptionTile({
           transcripts.get(s.id),
           localParticipant.localParticipant
         )
-      )
-    );
+      );
+    });
 
     const allMessages = Array.from(transcripts.values());
     for (const msg of chatMessages) {
@@ -71,24 +67,14 @@ export function TranscriptionTile({
         msg.from?.identity === localParticipant.localParticipant.identity;
       let name = msg.from?.name;
       if (!name) {
-        if (isAgent) {
-          name = "Agent";
-        } else if (isSelf) {
-          name = "You";
-        } else {
-          name = "Unknown";
-        }
+        name = isAgent ? "Agent" : isSelf ? "You" : "Unknown";
       }
       allMessages.push({
         name,
         message: msg.message,
         timestamp: msg.timestamp,
-        isSelf: isSelf,
+        isSelf,
       });
-
-      if (isAgent) {
-        onTranscript(msg.message);
-      }
     }
     allMessages.sort((a, b) => a.timestamp - b.timestamp);
     setMessages(allMessages);
@@ -99,8 +85,19 @@ export function TranscriptionTile({
     agentAudioTrack.participant,
     agentMessages.segments,
     localMessages.segments,
-    onTranscript,
   ]);
+
+  // Call onAgentTranscript when a new final agent segment arrives.
+  const lastSpokenSegmentIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (onAgentTranscript && agentMessages.segments.length > 0) {
+      const lastSegment = agentMessages.segments[agentMessages.segments.length - 1];
+      if (lastSegment.final && lastSegment.id !== lastSpokenSegmentIdRef.current) {
+        lastSpokenSegmentIdRef.current = lastSegment.id;
+        onAgentTranscript(lastSegment.text);
+      }
+    }
+  }, [agentMessages.segments, onAgentTranscript]);
 
   return (
     <ChatTile messages={messages} accentColor={accentColor} onSend={sendChat} />
@@ -112,11 +109,10 @@ function segmentToChatMessage(
   existingMessage: ChatMessageType | undefined,
   participant: Participant
 ): ChatMessageType {
-  const msg: ChatMessageType = {
+  return {
     message: s.final ? s.text : `${s.text} ...`,
     name: participant instanceof LocalParticipant ? "You" : "Agent",
     isSelf: participant instanceof LocalParticipant,
     timestamp: existingMessage?.timestamp ?? Date.now(),
   };
-  return msg;
 }

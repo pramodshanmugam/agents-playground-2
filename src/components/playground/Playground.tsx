@@ -57,11 +57,12 @@ const headerHeight = 56;
 
 /**
  * A SMALL HOOK FOR ANAM CLIENT
+ * For dev usage, your real API key/persona is inlined.
  */
 function useAnamClient() {
   const API_KEY =
-    "ODhhYzA4M2EtMjRmYy00NTk0LTkxNWQtM2I4MmJlYWFlNGQ1OnNuWmV6b3NxYW8rMm5zRklxNTFOMzdkRWd4YVBVNHVGcnFSQnVqRUtNOXM9";
-  const PERSONA_ID = "1a5588b4-a717-468c-ad8b-03b323e78e78";
+    "ODhhYzA4M2EtMjRmYy00NTk0LTkxNWQtM2I4MmJlYWFlNGQ1OnNuWmV6b3NxYW8rMm5zRklxNTFOMzdkRWd4YVBVNHVGcnFSQnVqRUtNOXM9"; // Replace with your API key
+  const PERSONA_ID = "1a5588b4-a717-468c-ad8b-03b323e78e78"; // Replace with your persona ID
 
   const anamClientRef = useRef<AnamClient | null>(null);
 
@@ -129,6 +130,7 @@ export default function Playground({
   const roomState = useConnectionState();
   const tracks = useTracks();
 
+  // Use our Anam hook
   const { startStreaming, stopStreaming, talk } = useAnamClient();
 
   const [hasStarted, setHasStarted] = useState(false);
@@ -139,19 +141,22 @@ export default function Playground({
       startStreaming("anam-video", "anam-audio");
     }
     return () => {
-      // Comment out if you want the avatar to persist
+      // Optionally, call stopStreaming() if you want to end the avatar session.
       // stopStreaming();
     };
   }, [hasStarted, startStreaming, stopStreaming]);
 
+  /**
+   * Listen for data channel messages.
+   * (This block is still useful for additional messages not handled by TranscriptionTile.)
+   */
   const onDataReceived = useCallback(
     (msg: any) => {
       if (!msg || !msg.topic || !msg.payload) return;
 
       if (msg.topic === "transcription") {
-        const decoded = JSON.parse(
-          new TextDecoder("utf-8").decode(msg.payload)
-        );
+        const decoded = JSON.parse(new TextDecoder("utf-8").decode(msg.payload));
+        console.log("[Debug] Received user transcription:", decoded);
         let timestamp = new Date().getTime();
         if ("timestamp" in decoded && decoded.timestamp > 0) {
           timestamp = decoded.timestamp;
@@ -168,11 +173,9 @@ export default function Playground({
       }
 
       if (msg.topic === "agentTranscription") {
-        const decoded = JSON.parse(
-          new TextDecoder("utf-8").decode(msg.payload)
-        );
+        const decoded = JSON.parse(new TextDecoder("utf-8").decode(msg.payload));
         const agentText = decoded.text;
-        console.log("Agent transcript received:", agentText);
+        console.log("[Debug] Received agentTranscription:", agentText);
         setTranscripts((prev) => [
           ...prev,
           {
@@ -182,8 +185,13 @@ export default function Playground({
             isSelf: false,
           },
         ]);
-        // Now speak via Anam (only calling talk() once with the agent transcript)
-        talk(agentText);
+        // In case data channel messages are used, also call talk() here.
+        if (agentText.trim().length > 0) {
+          talk(agentText);
+        } else {
+          console.warn("[Debug] agentText is empty, using fallback...");
+          talk("Fallback agent message.");
+        }
       }
     },
     [talk]
@@ -305,24 +313,21 @@ export default function Playground({
     }
 
     return visualizerContent;
-  }, [
-    voiceAssistant.audioTrack,
-    config.settings.theme_color,
-    roomState,
-    voiceAssistant.state,
-  ]);
+  }, [voiceAssistant.audioTrack, config.settings.theme_color, roomState, voiceAssistant.state]);
 
+  // Pass onAgentTranscript to TranscriptionTile so that new agent transcripts trigger talk()
   const chatTileContent = useMemo(() => {
     if (voiceAssistant.audioTrack) {
       return (
         <TranscriptionTile
           agentAudioTrack={voiceAssistant.audioTrack}
           accentColor={config.settings.theme_color}
+          onAgentTranscript={talk}
         />
       );
     }
     return null;
-  }, [config.settings.theme_color, voiceAssistant.audioTrack]);
+  }, [config.settings.theme_color, voiceAssistant.audioTrack, talk]);
 
   const settingsTileContent = useMemo(() => {
     return (
@@ -387,10 +392,7 @@ export default function Playground({
         </ConfigurationPanelItem>
 
         {localVideoTrack && (
-          <ConfigurationPanelItem
-            title="Camera"
-            deviceSelectorKind="videoinput"
-          >
+          <ConfigurationPanelItem title="Camera" deviceSelectorKind="videoinput">
             <div className="relative">
               <VideoTrack
                 className="rounded-sm border border-gray-800 opacity-70 w-full"
@@ -401,10 +403,7 @@ export default function Playground({
         )}
 
         {localMicTrack && (
-          <ConfigurationPanelItem
-            title="Microphone"
-            deviceSelectorKind="audioinput"
-          >
+          <ConfigurationPanelItem title="Microphone" deviceSelectorKind="audioinput">
             <AudioInputTile trackRef={localMicTrack} />
           </ConfigurationPanelItem>
         )}
@@ -447,10 +446,7 @@ export default function Playground({
     mobileTabs.push({
       title: "Video",
       content: (
-        <PlaygroundTile
-          className="w-full h-full grow"
-          childrenClassName="justify-center"
-        >
+        <PlaygroundTile className="w-full h-full grow" childrenClassName="justify-center">
           {videoTileContent}
         </PlaygroundTile>
       ),
@@ -460,10 +456,7 @@ export default function Playground({
     mobileTabs.push({
       title: "Audio",
       content: (
-        <PlaygroundTile
-          className="w-full h-full grow"
-          childrenClassName="justify-center"
-        >
+        <PlaygroundTile className="w-full h-full grow" childrenClassName="justify-center">
           {audioTileContent}
         </PlaygroundTile>
       ),
@@ -511,46 +504,28 @@ export default function Playground({
         style={{ height: `calc(100% - ${headerHeight}px)` }}
       >
         <div className="flex flex-col grow basis-1/2 gap-4 h-full lg:hidden">
-          <PlaygroundTabbedTile
-            className="h-full"
-            tabs={mobileTabs}
-            initialTab={mobileTabs.length - 1}
-          />
+          <PlaygroundTabbedTile className="h-full" tabs={mobileTabs} initialTab={mobileTabs.length - 1} />
         </div>
 
         <div
           className={`flex-col grow basis-1/2 gap-4 h-full hidden lg:${
-            !config.settings.outputs.audio && !config.settings.outputs.video
-              ? "hidden"
-              : "flex"
+            !config.settings.outputs.audio && !config.settings.outputs.video ? "hidden" : "flex"
           }`}
         >
           {config.settings.outputs.video && (
-            <PlaygroundTile
-              title="Video"
-              className="w-full h-full grow"
-              childrenClassName="justify-center"
-            >
+            <PlaygroundTile title="Video" className="w-full h-full grow" childrenClassName="justify-center">
               {videoTileContent}
             </PlaygroundTile>
           )}
-
           {config.settings.outputs.audio && (
-            <PlaygroundTile
-              title="Audio"
-              className="w-full h-full grow"
-              childrenClassName="justify-center"
-            >
+            <PlaygroundTile title="Audio" className="w-full h-full grow" childrenClassName="justify-center">
               {audioTileContent}
             </PlaygroundTile>
           )}
         </div>
 
         {config.settings.chat && (
-          <PlaygroundTile
-            title="Chat"
-            className="h-full grow basis-1/4 hidden lg:flex"
-          >
+          <PlaygroundTile title="Chat" className="h-full grow basis-1/4 hidden lg:flex">
             {chatTileContent}
           </PlaygroundTile>
         )}
