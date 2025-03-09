@@ -11,7 +11,7 @@ import {
   Track,
   TranscriptionSegment,
 } from "livekit-client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 
 export interface TranscriptionTileProps {
   agentAudioTrack: TrackReferenceOrPlaceholder;
@@ -24,6 +24,7 @@ export function TranscriptionTile({
   accentColor,
   onAgentTranscript,
 }: TranscriptionTileProps) {
+  // Get transcription segments for agent and local mic
   const agentMessages = useTrackTranscription(agentAudioTrack);
   const localParticipant = useLocalParticipant();
   const localMessages = useTrackTranscription({
@@ -32,12 +33,17 @@ export function TranscriptionTile({
     participant: localParticipant.localParticipant,
   });
 
-  const [transcripts, setTranscripts] = useState<Map<string, ChatMessageType>>(new Map());
+  const [transcripts, setTranscripts] = useState<Map<string, ChatMessageType>>(
+    new Map()
+  );
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const { chatMessages, send: sendChat } = useChat();
 
-  // Update transcripts map from agent and local segments.
+  // Only update transcripts if agentAudioTrack and its participant exist
   useEffect(() => {
+    if (!agentAudioTrack || !agentAudioTrack.participant) return;
+
+    // Update transcripts for agent segments
     agentMessages.segments.forEach((s) => {
       transcripts.set(
         s.id,
@@ -48,6 +54,8 @@ export function TranscriptionTile({
         )
       );
     });
+
+    // Update transcripts for local microphone segments
     localMessages.segments.forEach((s) => {
       transcripts.set(
         s.id,
@@ -82,22 +90,27 @@ export function TranscriptionTile({
     transcripts,
     chatMessages,
     localParticipant.localParticipant,
-    agentAudioTrack.participant,
+    agentAudioTrack,
     agentMessages.segments,
     localMessages.segments,
   ]);
 
-  // Call onAgentTranscript when a new final agent segment arrives.
-  const lastSpokenSegmentIdRef = useRef<string | null>(null);
+  // Keep track of the last final segment to avoid calling onAgentTranscript repeatedly.
+  const [lastFinalSegmentId, setLastFinalSegmentId] = useState<string | null>(null);
   useEffect(() => {
-    if (onAgentTranscript && agentMessages.segments.length > 0) {
+    if (
+      onAgentTranscript &&
+      agentMessages.segments.length > 0 &&
+      agentAudioTrack &&
+      agentAudioTrack.participant
+    ) {
       const lastSegment = agentMessages.segments[agentMessages.segments.length - 1];
-      if (lastSegment.final && lastSegment.id !== lastSpokenSegmentIdRef.current) {
-        lastSpokenSegmentIdRef.current = lastSegment.id;
+      if (lastSegment.final && lastSegment.id !== lastFinalSegmentId) {
+        setLastFinalSegmentId(lastSegment.id);
         onAgentTranscript(lastSegment.text);
       }
     }
-  }, [agentMessages.segments, onAgentTranscript]);
+  }, [agentMessages.segments, onAgentTranscript, lastFinalSegmentId, agentAudioTrack]);
 
   return (
     <ChatTile messages={messages} accentColor={accentColor} onSend={sendChat} />

@@ -29,7 +29,6 @@ import {
 import { useConfig } from "@/hooks/useConfig";
 import { TranscriptionTile } from "@/transcriptions/TranscriptionTile";
 import {
-  BarVisualizer,
   VideoTrack,
   useConnectionState,
   useDataChannel,
@@ -38,9 +37,14 @@ import {
   useTracks,
   useVoiceAssistant,
 } from "@livekit/components-react";
-import { ConnectionState, LocalParticipant, Track } from "livekit-client";
+import { ConnectionState, LocalParticipant, Track, RemoteParticipant } from "livekit-client";
 import { QRCodeSVG } from "qrcode.react";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
+
+/** 
+ * If you previously used BarVisualizer or other agent audio elements, 
+ * we've removed them so that LiveKit's agent audio is disabled.
+ */
 
 export interface PlaygroundMeta {
   name: string;
@@ -56,13 +60,13 @@ export interface PlaygroundProps {
 const headerHeight = 56;
 
 /**
- * A SMALL HOOK FOR ANAM CLIENT
- * For dev usage, your real API key/persona is inlined.
+ * HOOK FOR ANAM CLIENT
+ * For dev usage, your real API key/persona is inlined. 
+ * In production, use a short-lived token.
  */
 function useAnamClient() {
-  const API_KEY =
-    "ODhhYzA4M2EtMjRmYy00NTk0LTkxNWQtM2I4MmJlYWFlNGQ1OnNuWmV6b3NxYW8rMm5zRklxNTFOMzdkRWd4YVBVNHVGcnFSQnVqRUtNOXM9"; // Replace with your API key
-  const PERSONA_ID = "1a5588b4-a717-468c-ad8b-03b323e78e78"; // Replace with your persona ID
+  const API_KEY = "ODhhYzA4M2EtMjRmYy00NTk0LTkxNWQtM2I4MmJlYWFlNGQ1OnNuWmV6b3NxYW8rMm5zRklxNTFOMzdkRWd4YVBVNHVGcnFSQnVqRUtNOXM9"; 
+  const PERSONA_ID = "1a5588b4-a717-468c-ad8b-03b323e78e78";
 
   const anamClientRef = useRef<AnamClient | null>(null);
 
@@ -76,8 +80,8 @@ function useAnamClient() {
 
     const onConnectionEstablished = () => {
       console.log("[Anam] CONNECTION_ESTABLISHED; can safely talk now.");
-      // Test immediate greeting
-      anamClientRef.current?.talk("Hello from Anam avatar!");
+      // Test greeting
+      client.talk("Hello from Anam avatar!");
     };
     client.addListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
 
@@ -85,15 +89,16 @@ function useAnamClient() {
       client.removeListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
     };
   }, []);
+  
 
   async function startStreaming(videoId: string, audioId: string) {
+    if (!anamClientRef.current) return;
+    console.log("[Anam] Starting stream...");
     try {
-      if (!anamClientRef.current) return;
-      console.log("[Anam] Starting stream...");
       await anamClientRef.current.streamToVideoAndAudioElements(videoId, audioId);
       console.log("[Anam] Stream started successfully.");
-    } catch (error) {
-      console.error("[Anam] Failed to start streaming:", error);
+    } catch (err) {
+      console.error("[Anam] Failed to start streaming:", err);
     }
   }
 
@@ -110,10 +115,16 @@ function useAnamClient() {
     anamClientRef.current.talk(text);
   }
 
+  function createTalkMessageStream() {
+    if (!anamClientRef.current) return null;
+    return anamClientRef.current.createTalkMessageStream();
+  }
+
   return {
     startStreaming,
     stopStreaming,
     talk,
+    createTalkMessageStream,
   };
 }
 
@@ -124,81 +135,89 @@ export default function Playground({
 }: PlaygroundProps) {
   const { config, setUserSettings } = useConfig();
   const { name } = useRoomInfo();
+
   const [transcripts, setTranscripts] = useState<ChatMessageType[]>([]);
   const { localParticipant } = useLocalParticipant();
   const voiceAssistant = useVoiceAssistant();
+
   const roomState = useConnectionState();
   const tracks = useTracks();
 
-  // Use our Anam hook
-  const { startStreaming, stopStreaming, talk } = useAnamClient();
-
+  // Use our Anam hook for the avatar
+  const { startStreaming, stopStreaming, talk, createTalkMessageStream } = useAnamClient();
   const [hasStarted, setHasStarted] = useState(false);
 
+  // We track a ref to the "talk stream" for incremental text
+  const talkStreamRef = useRef<any>(null);
+
+  // Start the avatar streaming once
   useEffect(() => {
     if (!hasStarted) {
       setHasStarted(true);
-      startStreaming("anam-video", "anam-audio");
+      startStreaming("anam-video", "anam-audio"); // <video> & <audio> for Anam
     }
     return () => {
-      // Optionally, call stopStreaming() if you want to end the avatar session.
-      // stopStreaming();
+      // stopStreaming(); // comment out if you want the avatar to persist
     };
   }, [hasStarted, startStreaming, stopStreaming]);
 
   /**
-   * Listen for data channel messages.
-   * (This block is still useful for additional messages not handled by TranscriptionTile.)
+   * Data channel callback:
+   * If an agent transcript arrives, we pass it to Anam in real time.
    */
   const onDataReceived = useCallback(
     (msg: any) => {
       if (!msg || !msg.topic || !msg.payload) return;
 
+      // If user transcription
       if (msg.topic === "transcription") {
         const decoded = JSON.parse(new TextDecoder("utf-8").decode(msg.payload));
-        console.log("[Debug] Received user transcription:", decoded);
-        let timestamp = new Date().getTime();
-        if ("timestamp" in decoded && decoded.timestamp > 0) {
-          timestamp = decoded.timestamp;
-        }
+        console.log("[Debug] user transcription:", decoded);
+        const timestamp = decoded.timestamp || Date.now();
         setTranscripts((prev) => [
           ...prev,
-          {
-            name: "You",
-            message: decoded.text,
-            timestamp,
-            isSelf: true,
-          },
+          { name: "You", message: decoded.text, timestamp, isSelf: true },
         ]);
       }
 
+      // If agent transcription
       if (msg.topic === "agentTranscription") {
         const decoded = JSON.parse(new TextDecoder("utf-8").decode(msg.payload));
-        const agentText = decoded.text;
-        console.log("[Debug] Received agentTranscription:", agentText);
+        console.log("[Debug] agentTranscription:", decoded);
+        const agentText = decoded.text || "";
+        const final = !!decoded.final;
+
         setTranscripts((prev) => [
           ...prev,
-          {
-            name: "Agent",
-            message: agentText,
-            timestamp: Date.now(),
-            isSelf: false,
-          },
+          { name: "Agent", message: agentText, timestamp: Date.now(), isSelf: false },
         ]);
-        // In case data channel messages are used, also call talk() here.
-        if (agentText.trim().length > 0) {
-          talk(agentText);
+
+        // Real-time streaming
+        if (!final) {
+          // If partial
+          if (!talkStreamRef.current) {
+            talkStreamRef.current = createTalkMessageStream();
+          }
+          if (talkStreamRef.current) {
+            talkStreamRef.current.streamMessageChunk(agentText, false);
+          }
         } else {
-          console.warn("[Debug] agentText is empty, using fallback...");
-          talk("Fallback agent message.");
+          // Final chunk
+          if (talkStreamRef.current) {
+            talkStreamRef.current.streamMessageChunk(agentText, true);
+            talkStreamRef.current = null;
+          } else {
+            talk(agentText);
+          }
         }
       }
     },
-    [talk]
+    [talk, createTalkMessageStream]
   );
 
   useDataChannel(onDataReceived);
 
+  // If connected, enable local mic/cam as needed
   useEffect(() => {
     if (roomState === ConnectionState.Connected) {
       localParticipant.setCameraEnabled(config.settings.inputs.camera);
@@ -206,117 +225,67 @@ export default function Playground({
     }
   }, [config, localParticipant, roomState]);
 
+  /**
+   * Grab the agent's video track if it exists
+   */
   const agentVideoTrack = tracks.find(
     (trackRef) =>
       trackRef.publication.kind === Track.Kind.Video &&
       trackRef.participant.isAgent
   );
 
+  /**
+   * Grab local tracks (for camera/mic device selector)
+   */
   const localTracks = tracks.filter(
     ({ participant }) => participant instanceof LocalParticipant
   );
-  const localVideoTrack = localTracks.find(
-    ({ source }) => source === Track.Source.Camera
-  );
-  const localMicTrack = localTracks.find(
-    ({ source }) => source === Track.Source.Microphone
-  );
+  const localVideoTrack = localTracks.find((t) => t.source === Track.Source.Camera);
+  const localMicTrack = localTracks.find((t) => t.source === Track.Source.Microphone);
 
+  // VIDEO tile logic for the agent (not audio)
   const videoTileContent = useMemo(() => {
     const videoFitClassName = `object-${config.video_fit || "cover"}`;
 
-    const disconnectedContent = (
-      <div className="flex items-center justify-center text-gray-700 text-center w-full h-full">
-        No video track. Connect to get started.
-      </div>
-    );
-
-    const loadingContent = (
-      <div className="flex flex-col items-center justify-center gap-2 text-gray-700 text-center h-full w-full">
-        <LoadingSVG />
-        Waiting for video track
-      </div>
-    );
-
-    const videoContent = (
-      <VideoTrack
-        trackRef={agentVideoTrack}
-        className={`absolute top-1/2 -translate-y-1/2 ${videoFitClassName} object-position-center w-full h-full`}
-      />
-    );
-
-    let content = null;
     if (roomState === ConnectionState.Disconnected) {
-      content = disconnectedContent;
-    } else if (agentVideoTrack) {
-      content = videoContent;
-    } else {
-      content = loadingContent;
+      return (
+        <div className="flex items-center justify-center text-gray-700 text-center w-full h-full">
+          No video track. Connect to get started.
+        </div>
+      );
     }
-
+    if (!agentVideoTrack) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-2 text-gray-700 text-center h-full w-full">
+          <LoadingSVG />
+          Waiting for agent video track
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col w-full grow text-gray-950 bg-black rounded-sm border border-gray-800 relative">
-        {content}
+        <VideoTrack
+          trackRef={agentVideoTrack}
+          className={`absolute top-1/2 -translate-y-1/2 ${videoFitClassName} object-position-center w-full h-full`}
+        />
       </div>
     );
   }, [agentVideoTrack, config.video_fit, roomState]);
 
-  useEffect(() => {
-    document.body.style.setProperty(
-      "--lk-theme-color",
-      // @ts-ignore
-      tailwindTheme.colors[config.settings.theme_color]["500"]
-    );
-    document.body.style.setProperty(
-      "--lk-drop-shadow",
-      `var(--lk-theme-color) 0px 0px 18px`
-    );
-  }, [config.settings.theme_color]);
-
+  // Remove or replace the "Audio" tile that might have played the agent's LiveKit audio
   const audioTileContent = useMemo(() => {
-    const disconnectedContent = (
-      <div className="flex flex-col items-center justify-center gap-2 text-gray-700 text-center w-full">
-        No audio track. Connect to get started.
+    return (
+      <div className="flex flex-col items-center justify-center text-gray-700 text-center w-full h-full">
+        <p>Agent's LiveKit audio is disabled.</p>
+        <p>Only using Anam for audio output.</p>
       </div>
     );
+  }, []);
 
-    const waitingContent = (
-      <div className="flex flex-col items-center gap-2 text-gray-700 text-center w-full">
-        <LoadingSVG />
-        Waiting for audio track
-      </div>
-    );
-
-    const visualizerContent = (
-      <div
-        className={`
-          flex items-center justify-center w-full h-48
-          [--lk-va-bar-width:30px] [--lk-va-bar-gap:20px]
-          [--lk-fg:var(--lk-theme-color)]
-        `}
-      >
-        <BarVisualizer
-          state={voiceAssistant.state}
-          trackRef={voiceAssistant.audioTrack}
-          barCount={5}
-          options={{ minHeight: 20 }}
-        />
-      </div>
-    );
-
-    if (roomState === ConnectionState.Disconnected) {
-      return disconnectedContent;
-    }
-
-    if (!voiceAssistant.audioTrack) {
-      return waitingContent;
-    }
-
-    return visualizerContent;
-  }, [voiceAssistant.audioTrack, config.settings.theme_color, roomState, voiceAssistant.state]);
-
-  // Pass onAgentTranscript to TranscriptionTile so that new agent transcripts trigger talk()
+  // Chat tile logic
   const chatTileContent = useMemo(() => {
+    // If you want to show transcriptions in a tile
+    // The TranscriptionTile uses the agentAudioTrack from voiceAssistant.
     if (voiceAssistant.audioTrack) {
       return (
         <TranscriptionTile
@@ -327,8 +296,9 @@ export default function Playground({
       );
     }
     return null;
-  }, [config.settings.theme_color, voiceAssistant.audioTrack, talk]);
+  }, [voiceAssistant.audioTrack, config.settings.theme_color, talk]);
 
+  // Settings tile
   const settingsTileContent = useMemo(() => {
     return (
       <div className="flex flex-col gap-4 h-full w-full items-start overflow-y-auto">
@@ -430,7 +400,6 @@ export default function Playground({
   }, [
     config.description,
     config.settings,
-    config.show_qr,
     localParticipant,
     name,
     roomState,
@@ -441,6 +410,7 @@ export default function Playground({
     voiceAssistant.agent,
   ]);
 
+  // Build the mobile tab list
   let mobileTabs: PlaygroundTab[] = [];
   if (config.settings.outputs.video) {
     mobileTabs.push({
@@ -453,6 +423,7 @@ export default function Playground({
     });
   }
   if (config.settings.outputs.audio) {
+    // Replaced agent’s audio tile with a placeholder
     mobileTabs.push({
       title: "Audio",
       content: (
@@ -482,10 +453,60 @@ export default function Playground({
     ),
   });
 
+  // Apply the theme color to the body
+  useEffect(() => {
+    document.body.style.setProperty(
+      "--lk-theme-color",
+      // @ts-ignore
+      tailwindTheme.colors[config.settings.theme_color]["500"]
+    );
+    document.body.style.setProperty(
+      "--lk-drop-shadow",
+      `var(--lk-theme-color) 0px 0px 18px`
+    );
+  }, [config.settings.theme_color]);
+  useEffect(() => {
+    console.log("All tracks:", tracks);
+  }, [tracks]);
+  
+
+  useEffect(() => {
+    // Function to mute all LiveKit audio elements except for those we want to keep (like "anam-audio")
+    const muteLiveKitAudio = () => {
+      const audioElements = Array.from(document.querySelectorAll("audio")).filter(
+        (el) => (el as HTMLAudioElement).id !== "anam-audio"
+      );
+      audioElements.forEach((el) => {
+        (el as HTMLAudioElement).muted = true;
+      });
+      console.log("Muted LiveKit audio elements:", audioElements);
+    };
+  
+    // Mute once after a short delay (in case elements are not yet rendered)
+    const initialTimeout = setTimeout(muteLiveKitAudio, 1000);
+  
+    // Use a MutationObserver to monitor the DOM for new audio elements
+    const observer = new MutationObserver(() => {
+      muteLiveKitAudio();
+    });
+  
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+  
+    return () => {
+      clearTimeout(initialTimeout);
+      observer.disconnect();
+    };
+  }, []);
+  
+  
   return (
     <>
+      {/* Anam’s video/audio elements: remove style="display:none" from audio so you can hear it */}
       <video id="anam-video" autoPlay playsInline />
-      <audio id="anam-audio" autoPlay style={{ display: "none" }} />
+      <audio id="anam-audio" autoPlay />
 
       <PlaygroundHeader
         title={config.title}
@@ -494,19 +515,23 @@ export default function Playground({
         height={headerHeight}
         accentColor={config.settings.theme_color}
         connectionState={roomState}
-        onConnectClicked={() =>
-          onConnect(roomState === ConnectionState.Disconnected)
-        }
+        onConnectClicked={() => onConnect(roomState === ConnectionState.Disconnected)}
       />
 
       <div
         className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`}
         style={{ height: `calc(100% - ${headerHeight}px)` }}
       >
+        {/* MOBILE TABS */}
         <div className="flex flex-col grow basis-1/2 gap-4 h-full lg:hidden">
-          <PlaygroundTabbedTile className="h-full" tabs={mobileTabs} initialTab={mobileTabs.length - 1} />
+          <PlaygroundTabbedTile
+            className="h-full"
+            tabs={mobileTabs}
+            initialTab={mobileTabs.length - 1}
+          />
         </div>
 
+        {/* DESKTOP LAYOUT */}
         <div
           className={`flex-col grow basis-1/2 gap-4 h-full hidden lg:${
             !config.settings.outputs.audio && !config.settings.outputs.video ? "hidden" : "flex"
