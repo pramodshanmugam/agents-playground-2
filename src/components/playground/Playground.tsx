@@ -1,19 +1,7 @@
 "use client";
 
-// --- REACT & ANAM IMPORTS ---
-import {
-  useEffect,
-  useMemo,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
-import {
-  AnamClient,
-  unsafe_createClientWithApiKey,
-} from "@anam-ai/js-sdk";
-
-// --- LIVEKIT & YOUR COMPONENT IMPORTS ---
+import { useEffect, useMemo, useState } from "react";
+// (Other imports remain unchanged)
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatMessageType } from "@/components/chat/ChatTile";
 import { ColorPicker } from "@/components/colorPicker/ColorPicker";
@@ -40,6 +28,9 @@ import { ConnectionState, LocalParticipant, Track } from "livekit-client";
 import { QRCodeSVG } from "qrcode.react";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
 
+// Import the combined Anam hook.
+import { useAnamAi } from "@/hooks/useAnamAi";
+
 export interface PlaygroundMeta {
   name: string;
   value: string;
@@ -53,68 +44,6 @@ export interface PlaygroundProps {
 
 const headerHeight = 56;
 
-function useAnamClient() {
-  const API_KEY =
-    "Y2FjYmJhMmMtMTQ4Ni00MjE1LTkzYjYtNjRmOTk3MTZkZGNhOitQYWhKdTNhT0UwRmVCaS9vQ09HV1hIWU1KTnNDdXlvaFBHWmhZUCtJL2M9";
-  const PERSONA_ID = "1a5588b4-a717-468c-ad8b-03b323e78e78";
-
-  const anamClientRef = useRef<AnamClient | null>(null);
-
-  useEffect(() => {
-    if (anamClientRef.current) return;
-    const client = unsafe_createClientWithApiKey(API_KEY, {
-      personaId: PERSONA_ID,
-      disableBrains: true,
-    });
-    anamClientRef.current = client;
-
-    const onConnectionEstablished = () => {
-      console.log("[Anam] CONNECTION_ESTABLISHED; can safely talk now.");
-      client.talk("Hello from Anam avatar!");
-    };
-    client.addListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
-    return () => {
-      client.removeListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
-    };
-  }, []);
-
-  async function startStreaming(videoId: string, audioId: string) {
-    if (!anamClientRef.current) return;
-    console.log("[Anam] Starting stream...");
-    try {
-      await anamClientRef.current.streamToVideoAndAudioElements(videoId, audioId);
-      console.log("[Anam] Stream started successfully.");
-    } catch (err) {
-      console.error("[Anam] Failed to start streaming:", err);
-    }
-  }
-
-  function stopStreaming() {
-    if (!anamClientRef.current) return;
-    anamClientRef.current.stopStreaming().catch((err) => {
-      console.error("[Anam] Failed to stop streaming:", err);
-    });
-  }
-
-  function talk(text: string) {
-    if (!anamClientRef.current) return;
-    console.log("[Anam] talk() called with text:", text);
-    anamClientRef.current.talk(text);
-  }
-
-  function createTalkMessageStream() {
-    if (!anamClientRef.current) return null;
-    return anamClientRef.current.createTalkMessageStream();
-  }
-
-  return {
-    startStreaming,
-    stopStreaming,
-    talk,
-    createTalkMessageStream,
-  };
-}
-
 export default function Playground({
   logo,
   themeColors,
@@ -122,82 +51,35 @@ export default function Playground({
 }: PlaygroundProps) {
   const { config, setUserSettings } = useConfig();
   const { name } = useRoomInfo();
-
   const [transcripts, setTranscripts] = useState<ChatMessageType[]>([]);
   const { localParticipant } = useLocalParticipant();
   const voiceAssistant = useVoiceAssistant();
-
   const roomState = useConnectionState();
   const tracks = useTracks();
 
-  const { startStreaming, stopStreaming, talk, createTalkMessageStream } = useAnamClient();
+  // Use the combined Anam hook.
+  const {
+    startStreaming,
+    stopStreaming,
+    talk,
+    createTalkMessageStream,
+    streamTranscript,
+  } = useAnamAi();
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Ref for a queue of incoming text chunks.
-  // Refs for managing the talk stream and debouncing
-const talkStreamRef = useRef<any>(null);
-const queuedChunksRef = useRef<string[]>([]);
-const endTurnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-
-  // flushQueue: When there is no active talk stream, create one and stream the queued chunks.
-  const flushQueue = useCallback(() => {
-    if (queuedChunksRef.current.length === 0) return;
-    talkStreamRef.current = createTalkMessageStream();
-    if (talkStreamRef.current && talkStreamRef.current.isActive()) {
-      console.log("[Debug] Flushing queued chunks:", queuedChunksRef.current);
-      for (let i = 0; i < queuedChunksRef.current.length; i++) {
-        const chunk = queuedChunksRef.current[i];
-        const isLast = i === queuedChunksRef.current.length - 1;
-        talkStreamRef.current.streamMessageChunk(chunk, isLast);
-      }
-    }
-    // Clear the queue.
-    queuedChunksRef.current = [];
-    // Reset the talk stream ref after a short delay.
-    setTimeout(() => {
-      talkStreamRef.current = null;
-      // If new chunks arrived in the meantime, flush again.
-      if (queuedChunksRef.current.length > 0) {
-        flushQueue();
-      }
-    }, 100);
-  }, [createTalkMessageStream]);
-
-  // Custom onAgentTranscript callback: add incoming words to the queue.
-  const onAgentTranscript = useCallback((newWords: string, isFinal: boolean) => {
-    console.log("[Debug] onAgentTranscript triggered with words:", newWords, "isFinal:", isFinal);
-    // Add the new words to the queue.
-    queuedChunksRef.current.push(newWords);
-    
-    // Clear any existing debounce timer.
-    if (endTurnTimeoutRef.current) {
-      clearTimeout(endTurnTimeoutRef.current);
-    }
-    
-    // If the segment is final, flush immediately.
-    if (isFinal) {
-      flushQueue();
-    } else {
-      // Otherwise, wait for a pause (e.g. 1500ms) before flushing.
-      endTurnTimeoutRef.current = setTimeout(() => {
-        flushQueue();
-      }, 1500);
-    }
-  }, [flushQueue]);
-
+  // Now pass streamTranscript as the onAgentTranscript callback.
   const chatTileContent = useMemo(() => {
     if (voiceAssistant.audioTrack) {
       return (
         <TranscriptionTile
           agentAudioTrack={voiceAssistant.audioTrack}
           accentColor={config.settings.theme_color}
-          onAgentTranscript={onAgentTranscript}
+          onAgentTranscript={streamTranscript}
         />
       );
     }
     return null;
-  }, [voiceAssistant.audioTrack, config.settings.theme_color, onAgentTranscript]);
+  }, [voiceAssistant.audioTrack, config.settings.theme_color, streamTranscript]);
 
   useEffect(() => {
     if (!hasStarted) {
