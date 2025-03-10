@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-// (Other imports remain unchanged)
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatMessageType } from "@/components/chat/ChatTile";
 import { ColorPicker } from "@/components/colorPicker/ColorPicker";
@@ -28,7 +27,7 @@ import { ConnectionState, LocalParticipant, Track } from "livekit-client";
 import { QRCodeSVG } from "qrcode.react";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
 
-// Import the combined Anam hook.
+// --- NEW: import your combined Anam hook ---
 import { useAnamAi } from "@/hooks/useAnamAi";
 
 export interface PlaygroundMeta {
@@ -57,42 +56,49 @@ export default function Playground({
   const roomState = useConnectionState();
   const tracks = useTracks();
 
-  // Use the combined Anam hook.
+  // --- NEW: use our single Anam AI hook
   const {
     startStreaming,
     stopStreaming,
     talk,
     createTalkMessageStream,
     streamTranscript,
+    isEnabled: anamEnabled, // We'll have isEnabled boolean from your hook
   } = useAnamAi();
+
+  // If Anam is not enabled (env not set), this Playground remains unchanged
+  // from its original functionality.
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Now pass streamTranscript as the onAgentTranscript callback.
+  // If Anam is enabled, we’ll pass streamTranscript to TranscriptionTile
   const chatTileContent = useMemo(() => {
     if (voiceAssistant.audioTrack) {
       return (
         <TranscriptionTile
           agentAudioTrack={voiceAssistant.audioTrack}
           accentColor={config.settings.theme_color}
-          onAgentTranscript={streamTranscript}
+          onAgentTranscript={anamEnabled ? streamTranscript : undefined}
         />
       );
     }
     return null;
-  }, [voiceAssistant.audioTrack, config.settings.theme_color, streamTranscript]);
+  }, [voiceAssistant.audioTrack, config.settings.theme_color, anamEnabled, streamTranscript]);
 
   useEffect(() => {
-    if (!hasStarted) {
+    // If Anam is enabled, start streaming to "anam-video"/"anam-audio"
+    // If not, do nothing, so we keep the original behavior using LiveKit’s agent audio if that’s available.
+    if (!hasStarted && anamEnabled) {
       setHasStarted(true);
       startStreaming("anam-video", "anam-audio");
     }
     return () => {
-      // Optionally stop streaming on unmount.
-      // stopStreaming();
+      // Optionally stop streaming on unmount if using Anam
+      // if (anamEnabled) stopStreaming();
     };
-  }, [hasStarted, startStreaming, stopStreaming]);
+  }, [hasStarted, startStreaming, stopStreaming, anamEnabled]);
 
   useEffect(() => {
+    // Original Playground code to enable local mic/cam
     if (roomState === ConnectionState.Connected) {
       localParticipant.setCameraEnabled(config.settings.inputs.camera);
       localParticipant.setMicrophoneEnabled(config.settings.inputs.mic);
@@ -110,6 +116,7 @@ export default function Playground({
   const localVideoTrack = localTracks.find((t) => t.source === Track.Source.Camera);
   const localMicTrack = localTracks.find((t) => t.source === Track.Source.Microphone);
 
+  // Original video tile logic
   const videoTileContent = useMemo(() => {
     const videoFitClassName = `object-${config.video_fit || "cover"}`;
     if (roomState === ConnectionState.Disconnected) {
@@ -137,13 +144,25 @@ export default function Playground({
     );
   }, [agentVideoTrack, config.video_fit, roomState]);
 
-  const audioTileContent = useMemo(() => (
-    <div className="flex flex-col items-center justify-center text-gray-700 text-center w-full h-full">
-      <p>Agent's LiveKit audio is disabled.</p>
-      <p>Only using Anam for audio output.</p>
-    </div>
-  ), []);
+  // If Anam is enabled, we want to disable the agent’s LiveKit audio
+  // so that only Anam’s TTS is heard. Otherwise, show default content.
+  const audioTileContent = useMemo(() => {
+    if (anamEnabled) {
+      return (
+        <div className="flex flex-col items-center justify-center text-gray-700 text-center w-full h-full">
+          <p>Agent's LiveKit audio is disabled (using Anam output).</p>
+        </div>
+      );
+    }
+    // Original fallback tile
+    return (
+      <div className="flex flex-col items-center justify-center text-gray-700 text-center w-full h-full">
+        <p>Agent's LiveKit audio is enabled.</p>
+      </div>
+    );
+  }, [anamEnabled]);
 
+  // Original settings tile logic
   const settingsTileContent = useMemo(() => (
     <div className="flex flex-col gap-4 h-full w-full items-start overflow-y-auto">
       {config.description && (
@@ -175,7 +194,9 @@ export default function Playground({
           <NameValueRow
             name="Agent connected"
             value={
-              voiceAssistant.agent ? "TRUE" : roomState === ConnectionState.Connected ? <LoadingSVG diameter={12} strokeWidth={2} /> : "FALSE"
+              voiceAssistant.agent ? "TRUE"
+                : roomState === ConnectionState.Connected ? <LoadingSVG diameter={12} strokeWidth={2} />
+                : "FALSE"
             }
             valueColor={voiceAssistant.agent ? `${config.settings.theme_color}-500` : "gray-500"}
           />
@@ -184,7 +205,10 @@ export default function Playground({
       {localVideoTrack && (
         <ConfigurationPanelItem title="Camera" deviceSelectorKind="videoinput">
           <div className="relative">
-            <VideoTrack className="rounded-sm border border-gray-800 opacity-70 w-full" trackRef={localVideoTrack} />
+            <VideoTrack
+              className="rounded-sm border border-gray-800 opacity-70 w-full"
+              trackRef={localVideoTrack}
+            />
           </div>
         </ConfigurationPanelItem>
       )}
@@ -210,7 +234,18 @@ export default function Playground({
         </ConfigurationPanelItem>
       )}
     </div>
-  ), [config.description, config.settings, localParticipant, name, roomState, localVideoTrack, localMicTrack, themeColors, setUserSettings, voiceAssistant.agent]);
+  ), [
+    config.description,
+    config.settings,
+    localParticipant,
+    name,
+    roomState,
+    localVideoTrack,
+    localMicTrack,
+    themeColors,
+    setUserSettings,
+    voiceAssistant.agent,
+  ]);
 
   let mobileTabs: PlaygroundTab[] = [];
   if (config.settings.outputs.video) {
@@ -253,6 +288,7 @@ export default function Playground({
     ),
   });
 
+  // Original effect for theming & audio muting
   useEffect(() => {
     document.body.style.setProperty(
       "--lk-theme-color",
@@ -266,8 +302,15 @@ export default function Playground({
     console.log("All tracks:", tracks);
   }, [tracks]);
 
+  // This effect mutes all LiveKit audio except Anam’s
+  // This is effectively disabling agent’s LiveKit audio
+  // which is consistent with your request.
   useEffect(() => {
     const muteLiveKitAudio = () => {
+      if (!anamEnabled) return; 
+      // Only mute if we are using Anam. If we want to keep 
+      // original LiveKit agent audio when not using Anam, 
+      // we skip this logic if anamEnabled is false.
       const audioElements = Array.from(document.querySelectorAll("audio")).filter(
         (el) => (el as HTMLAudioElement).id !== "anam-audio"
       );
@@ -286,12 +329,17 @@ export default function Playground({
       clearTimeout(initialTimeout);
       observer.disconnect();
     };
-  }, []);
+  }, [anamEnabled]);
 
   return (
     <>
-      <video id="anam-video" autoPlay playsInline />
-      <audio id="anam-audio" autoPlay />
+      {/* If Anam is enabled, we stream to these. Otherwise, they're just blank */}
+      {anamEnabled && (
+        <>
+          <video id="anam-video" autoPlay playsInline />
+          <audio id="anam-audio" autoPlay />
+        </>
+      )}
 
       <PlaygroundHeader
         title={config.title}
@@ -303,11 +351,21 @@ export default function Playground({
         onConnectClicked={() => onConnect(roomState === ConnectionState.Disconnected)}
       />
 
-      <div className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`} style={{ height: `calc(100% - ${headerHeight}px)` }}>
+      <div
+        className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`}
+        style={{ height: `calc(100% - ${headerHeight}px)` }}
+      >
+        {/* MOBILE TABS */}
         <div className="flex flex-col grow basis-1/2 gap-4 h-full lg:hidden">
           <PlaygroundTabbedTile className="h-full" tabs={mobileTabs} initialTab={mobileTabs.length - 1} />
         </div>
-        <div className={`flex-col grow basis-1/2 gap-4 h-full hidden lg:${!config.settings.outputs.audio && !config.settings.outputs.video ? "hidden" : "flex"}`}>
+
+        {/* DESKTOP LAYOUT: video + audio tiles */}
+        <div
+          className={`flex-col grow basis-1/2 gap-4 h-full hidden lg:${
+            !config.settings.outputs.audio && !config.settings.outputs.video ? "hidden" : "flex"
+          }`}
+        >
           {config.settings.outputs.video && (
             <PlaygroundTile title="Video" className="w-full h-full grow" childrenClassName="justify-center">
               {videoTileContent}
@@ -319,11 +377,15 @@ export default function Playground({
             </PlaygroundTile>
           )}
         </div>
+
+        {/* DESKTOP Chat tile */}
         {config.settings.chat && (
           <PlaygroundTile title="Chat" className="h-full grow basis-1/4 hidden lg:flex">
             {chatTileContent}
           </PlaygroundTile>
         )}
+
+        {/* DESKTOP Settings tile */}
         <PlaygroundTile
           padding={false}
           backgroundColor="gray-950"

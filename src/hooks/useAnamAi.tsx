@@ -1,19 +1,28 @@
-// hooks/useAnamAi.ts
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
 import { AnamClient, unsafe_createClientWithApiKey, createClient } from "@anam-ai/js-sdk";
 
-// Read credentials from environment variables.
+// Read credentials from env variables.
 const API_KEY = process.env.NEXT_PUBLIC_ANAM_API_KEY || "";
 const PERSONA_ID = process.env.NEXT_PUBLIC_ANAM_PERSONA_ID || "";
+const isEnabled = process.env.NEXT_PUBLIC_ANAM_ENABLED === "true";
 
 export function useAnamAi() {
   // Client instance ref.
   const clientRef = useRef<AnamClient | null>(null);
 
-  // Initialize the client if credentials are provided.
+  // Refs for text streaming.
+  const talkStreamRef = useRef<any>(null);
+  const queuedChunksRef = useRef<string[]>([]);
+  const endTurnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize the client only if credentials are provided and Anam is enabled.
   useEffect(() => {
+    if (!isEnabled) {
+      console.info("Anam not enabled; skipping AnamClient init.");
+      return;
+    }
     if (!API_KEY || !PERSONA_ID) {
       console.warn("Anam AI credentials not provided. Anam functionalities are disabled.");
       return;
@@ -30,9 +39,9 @@ export function useAnamAi() {
           client.talk("Hello from Anam avatar!");
         };
         client.addListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
-          return () => {
-         client.removeListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
-    };
+        return () => {
+          client.removeListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
+        };
       } catch (err) {
         console.error("Error creating Anam client:", err);
         clientRef.current = null;
@@ -69,29 +78,17 @@ export function useAnamAi() {
     return clientRef.current.createTalkMessageStream();
   }, []);
 
-  // --- TEXT STREAMING LOGIC ---
-
-  // Ref to store the active talk stream.
-  const talkStreamRef = useRef<any>(null);
-  // Ref to accumulate incoming text chunks.
-  const queuedChunksRef = useRef<string[]>([]);
-  // Ref for debounce timer.
-  const endTurnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // flushQueue creates a new talk stream (if needed) and streams all queued text.
+  // flushQueue: Create a talk stream and stream all queued text as one message.
   const flushQueue = useCallback(() => {
     if (queuedChunksRef.current.length === 0) return;
-    // Ensure we have an active talk stream.
     if (!talkStreamRef.current || !talkStreamRef.current.isActive()) {
       talkStreamRef.current = createTalkMessageStream();
     }
     if (talkStreamRef.current && talkStreamRef.current.isActive()) {
       const fullMessage = queuedChunksRef.current.join(" ");
       console.log("[AnamTextStream] Flushing queued chunks:", queuedChunksRef.current, "Combined:", fullMessage);
-      // Stream the full combined message as final.
       talkStreamRef.current.streamMessageChunk(fullMessage, true);
     }
-    // Clear the queue and reset the stream and timer.
     queuedChunksRef.current = [];
     talkStreamRef.current = null;
     if (endTurnTimeoutRef.current) {
@@ -101,24 +98,19 @@ export function useAnamAi() {
   }, [createTalkMessageStream]);
 
   /**
-   * streamTranscript: This function is meant to be used as the onAgentTranscript
-   * callback. It receives newWords (a string) and a boolean flag isFinal.
-   *
-   * - It pushes newWords into a queue.
-   * - If isFinal is true, or if no new words arrive for a debounce period (1500ms),
-   *   it flushes the queue by creating a talk stream and streaming the combined message.
+   * streamTranscript: This function is intended for use as the onAgentTranscript callback.
+   * It queues incoming text chunks and flushes them when the current turn ends
+   * (either via a final flag or after a 1500ms pause).
    */
   const streamTranscript = useCallback((newWords: string, isFinal: boolean) => {
     console.log("[AnamTextStream] Received chunk:", newWords, "isFinal:", isFinal);
     queuedChunksRef.current.push(newWords);
-    // Clear any existing debounce timer.
     if (endTurnTimeoutRef.current) {
       clearTimeout(endTurnTimeoutRef.current);
     }
     if (isFinal) {
       flushQueue();
     } else {
-      // Wait 1500ms after the last word before flushing.
       endTurnTimeoutRef.current = setTimeout(() => {
         flushQueue();
       }, 1500);
@@ -132,5 +124,6 @@ export function useAnamAi() {
     talk,
     createTalkMessageStream,
     streamTranscript,
+    isEnabled, // <-- Return isEnabled so it can be used in Playground.tsx
   };
 }
