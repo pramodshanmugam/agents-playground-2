@@ -11,12 +11,12 @@ import {
   Track,
   TranscriptionSegment,
 } from "livekit-client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface TranscriptionTileProps {
   agentAudioTrack: TrackReferenceOrPlaceholder;
   accentColor: string;
-  onAgentTranscript?: (text: string) => void;
+  onAgentTranscript?: (newWords: string, isFinal: boolean) => void; 
 }
 
 export function TranscriptionTile({
@@ -39,38 +39,39 @@ export function TranscriptionTile({
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const { chatMessages, send: sendChat } = useChat();
 
-  // Only update transcripts if agentAudioTrack and its participant exist
+  // Update transcripts for agent/local segments and show them in ChatTile
   useEffect(() => {
     if (!agentAudioTrack || !agentAudioTrack.participant) return;
 
     // Update transcripts for agent segments
-    agentMessages.segments.forEach((s) => {
+    agentMessages.segments.forEach((segment) => {
       transcripts.set(
-        s.id,
+        segment.id,
         segmentToChatMessage(
-          s,
-          transcripts.get(s.id),
+          segment,
+          transcripts.get(segment.id),
           agentAudioTrack.participant
         )
       );
     });
 
     // Update transcripts for local microphone segments
-    localMessages.segments.forEach((s) => {
+    localMessages.segments.forEach((segment) => {
       transcripts.set(
-        s.id,
+        segment.id,
         segmentToChatMessage(
-          s,
-          transcripts.get(s.id),
+          segment,
+          transcripts.get(segment.id),
           localParticipant.localParticipant
         )
       );
     });
 
     const allMessages = Array.from(transcripts.values());
+
+    // Include any regular chat messages
     for (const msg of chatMessages) {
-      const isAgent =
-        msg.from?.identity === agentAudioTrack.participant?.identity;
+      const isAgent = msg.from?.identity === agentAudioTrack.participant?.identity;
       const isSelf =
         msg.from?.identity === localParticipant.localParticipant.identity;
       let name = msg.from?.name;
@@ -84,6 +85,7 @@ export function TranscriptionTile({
         isSelf,
       });
     }
+
     allMessages.sort((a, b) => a.timestamp - b.timestamp);
     setMessages(allMessages);
   }, [
@@ -95,22 +97,41 @@ export function TranscriptionTile({
     localMessages.segments,
   ]);
 
-  // Keep track of the last final segment to avoid calling onAgentTranscript repeatedly.
-  const [lastFinalSegmentId, setLastFinalSegmentId] = useState<string | null>(null);
+  /**
+   * Track the last partial text so we can determine what’s new.
+   */
+  const lastPartialRef = useRef<string>("");
+
   useEffect(() => {
     if (
-      onAgentTranscript &&
-      agentMessages.segments.length > 0 &&
-      agentAudioTrack &&
-      agentAudioTrack.participant
+      !onAgentTranscript ||
+      !agentAudioTrack ||
+      !agentAudioTrack.participant ||
+      agentMessages.segments.length === 0
     ) {
-      const lastSegment = agentMessages.segments[agentMessages.segments.length - 1];
-      if (lastSegment.final && lastSegment.id !== lastFinalSegmentId) {
-        setLastFinalSegmentId(lastSegment.id);
-        onAgentTranscript(lastSegment.text);
-      }
+      return;
     }
-  }, [agentMessages.segments, onAgentTranscript, lastFinalSegmentId, agentAudioTrack]);
+
+    // Get the latest transcription segment.
+    const lastSegment = agentMessages.segments[agentMessages.segments.length - 1];
+    const currentText = lastSegment.text.trim();
+
+    // If there's no change, do nothing.
+    if (currentText === lastPartialRef.current) return;
+
+    // Split the text into words and compare with the last partial text.
+    const oldWords = lastPartialRef.current.split(/\s+/).filter(Boolean);
+    const newWords = currentText.split(/\s+/).filter(Boolean);
+    const diffWords = newWords.slice(oldWords.length);
+
+    if (diffWords.length > 0) {
+      // Join the newly added words into a string.
+      const newlyAddedText = diffWords.join(" ");
+      // Pass the new words along with a flag indicating if the current segment is final.
+      onAgentTranscript(newlyAddedText, !!lastSegment.final);
+    }
+    lastPartialRef.current = currentText;
+  }, [agentMessages.segments, agentAudioTrack, onAgentTranscript]);
 
   return (
     <ChatTile messages={messages} accentColor={accentColor} onSend={sendChat} />
@@ -123,7 +144,7 @@ function segmentToChatMessage(
   participant: Participant
 ): ChatMessageType {
   return {
-    message: s.final ? s.text : `${s.text} ...`,
+    message: s.final ? s.text : `${s.text} ...`, // appended "..." for partial
     name: participant instanceof LocalParticipant ? "You" : "Agent",
     isSelf: participant instanceof LocalParticipant,
     timestamp: existingMessage?.timestamp ?? Date.now(),
