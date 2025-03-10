@@ -133,38 +133,58 @@ export default function Playground({
   const { startStreaming, stopStreaming, talk, createTalkMessageStream } = useAnamClient();
   const [hasStarted, setHasStarted] = useState(false);
 
-  // Ref to manage the active talk stream.
-  const talkStreamRef = useRef<any>(null);
-  // Ref to debounce the end of a "turn" (i.e. end of continuous speech).
-  // Custom onAgentTranscript callback that streams each incoming chunk immediately.
-  // It doesn't require a final flag; instead, it ends the turn after a debounce delay.
-  const endTurnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref for a queue of incoming text chunks.
+  // Refs for managing the talk stream and debouncing
+const talkStreamRef = useRef<any>(null);
+const queuedChunksRef = useRef<string[]>([]);
+const endTurnTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-const onAgentTranscript = useCallback((newWords: string) => {
-  console.log("[Debug] onAgentTranscript triggered with words:", newWords);
-  // If no active talk stream exists, create one.
-  if (!talkStreamRef.current || !talkStreamRef.current.isActive()) {
-    console.log("[Debug] Creating new talk stream.");
+
+  // flushQueue: When there is no active talk stream, create one and stream the queued chunks.
+  const flushQueue = useCallback(() => {
+    if (queuedChunksRef.current.length === 0) return;
     talkStreamRef.current = createTalkMessageStream();
-  }
-  // Immediately stream the new chunk with final set to false,
-  // so the current turn remains open.
-  talkStreamRef.current.streamMessageChunk(newWords, false);
-
-  // Clear any previous timer.
-  if (endTurnTimeoutRef.current) {
-    clearTimeout(endTurnTimeoutRef.current);
-  }
-  // Set a new timer: if no new words arrive within 1500ms, end the turn.
-  endTurnTimeoutRef.current = setTimeout(() => {
     if (talkStreamRef.current && talkStreamRef.current.isActive()) {
-      console.log("[Debug] Ending talk stream turn.");
-      talkStreamRef.current.endMessage();
+      console.log("[Debug] Flushing queued chunks:", queuedChunksRef.current);
+      for (let i = 0; i < queuedChunksRef.current.length; i++) {
+        const chunk = queuedChunksRef.current[i];
+        const isLast = i === queuedChunksRef.current.length - 1;
+        talkStreamRef.current.streamMessageChunk(chunk, isLast);
+      }
     }
-    talkStreamRef.current = null;
-    endTurnTimeoutRef.current = null;
-  }, 1500);
-}, [createTalkMessageStream]);
+    // Clear the queue.
+    queuedChunksRef.current = [];
+    // Reset the talk stream ref after a short delay.
+    setTimeout(() => {
+      talkStreamRef.current = null;
+      // If new chunks arrived in the meantime, flush again.
+      if (queuedChunksRef.current.length > 0) {
+        flushQueue();
+      }
+    }, 100);
+  }, [createTalkMessageStream]);
+
+  // Custom onAgentTranscript callback: add incoming words to the queue.
+  const onAgentTranscript = useCallback((newWords: string, isFinal: boolean) => {
+    console.log("[Debug] onAgentTranscript triggered with words:", newWords, "isFinal:", isFinal);
+    // Add the new words to the queue.
+    queuedChunksRef.current.push(newWords);
+    
+    // Clear any existing debounce timer.
+    if (endTurnTimeoutRef.current) {
+      clearTimeout(endTurnTimeoutRef.current);
+    }
+    
+    // If the segment is final, flush immediately.
+    if (isFinal) {
+      flushQueue();
+    } else {
+      // Otherwise, wait for a pause (e.g. 1500ms) before flushing.
+      endTurnTimeoutRef.current = setTimeout(() => {
+        flushQueue();
+      }, 1500);
+    }
+  }, [flushQueue]);
 
   const chatTileContent = useMemo(() => {
     if (voiceAssistant.audioTrack) {
