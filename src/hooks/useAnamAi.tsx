@@ -36,7 +36,6 @@ export function useAnamAi() {
         clientRef.current = client;
         const onConnectionEstablished = () => {
           console.log("[Anam] CONNECTION_ESTABLISHED; can safely talk now.");
-          client.talk("Hello from Anam avatar!");
         };
         client.addListener("CONNECTION_ESTABLISHED", onConnectionEstablished);
         return () => {
