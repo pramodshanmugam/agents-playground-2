@@ -77,8 +77,6 @@ export default function Playground({
     isEnabled: anamEnabled,
     startStreaming,
     stopStreaming,
-    talk,
-    createTalkMessageStream,
     // e.g. streamTranscript if you want to handle partial text streaming
   } = useAnamAi();
 
@@ -100,16 +98,20 @@ export default function Playground({
   }, [voiceAssistant.audioTrack, config.settings.theme_color]);
 
   useEffect(() => {
-    // If Anam is enabled, start streaming to anam-video/anam-audio.
-    if (!hasStarted && anamEnabled) {
-      setHasStarted(true);
-      startStreaming("anam-video", "anam-audio");
+    if (!anamEnabled) return;
+  
+    if (roomState === ConnectionState.Connected) {
+      // If we’re connected and streaming isn’t started yet, then start streaming.
+      if (!hasStarted) {
+        setHasStarted(true);
+        startStreaming("anam-video", "anam-audio");
+      }
+    } else if (roomState === ConnectionState.Disconnected) {
+      // When disconnected, stop the streaming and reset the flag.
+      stopStreaming();
+      setHasStarted(false);
     }
-    return () => {
-      // Optionally stop streaming on unmount if anam is enabled:
-      // if (anamEnabled) stopStreaming();
-    };
-  }, [hasStarted, startStreaming, stopStreaming, anamEnabled]);
+  }, [roomState, anamEnabled, hasStarted, startStreaming, stopStreaming]);
 
   useEffect(() => {
     if (roomState === ConnectionState.Connected) {
