@@ -64,6 +64,15 @@ NEXT_PUBLIC_LIVEKIT_URL=wss://<Your Cloud URL>
 - The playground was tested against the kitt example in `https://github.com/livekit/agents`.
 - Feel free to ask questions, request features in our [community slack](https://livekit.io/join-slack).
 
+
+## Anam AI Integration:
+- When NEXT_PUBLIC_ANAM_ENABLED is set to "true"
+- The Playground initializes the Anam AI client using the provided NEXT_PUBLIC_ANAM_API_KEY and NEXT_PUBLIC_ANAM_PERSONA_ID. In this mode:
+
+An Anam Avatar tile is displayed in both desktop and mobile views.
+The Anam video and audio elements are rendered, and LiveKit’s agent audio is muted so that only Anam’s TTS output is heard.
+If NEXT_PUBLIC_ANAM_ENABLED is not set to "true", the Playground behaves with the default LiveKit functionality.
+
 ## Known issues
 
 - Layout can break on smaller screens.
