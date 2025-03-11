@@ -84,7 +84,13 @@ export function HomeInner() {
         <meta property="og:image:height" content="630" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
+<<<<<<< HEAD
       <main className="relative flex flex-col justify-center px-4 items-center h-full w-full bg-black repeating-square-background">
+=======
+      <main className="relative flex flex-col justify-center  px-4 items-center h-full overflow-y-auto  w-full bg-white repeating-square-background">
+
+     
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
         <AnimatePresence>
           {toastMessage && (
             <motion.div

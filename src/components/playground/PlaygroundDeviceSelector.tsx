@@ -35,19 +35,31 @@ export const PlaygroundDeviceSelector = ({
   return (
     <div>
       <button
+<<<<<<< HEAD
         className="flex gap-2 items-center px-2 py-1 bg-gray-900 text-gray-300 border border-gray-800 rounded-sm hover:bg-gray-800"
+=======
+        className="flex gap-2 items-center px-1  bg-gray-500 text-white  rounded-2xl hover:bg-gray-500"
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
         onClick={(e) => {
           setShowMenu(!showMenu);
           e.stopPropagation();
         }}
       >
+<<<<<<< HEAD
         <span className="max-w-[80px] overflow-ellipsis overflow-hidden whitespace-nowrap">
+=======
+        <span className="max-w-[80px] overflow-ellipsis overflow-hidden whitespace-nowrap bg-gray-500 py-1 rounded-2xl px-1  text-white  rounded-2xl hover:bg-gray-500 ">
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
           {selectedDeviceName}
         </span>
         <ChevronSVG />
       </button>
       <div
+<<<<<<< HEAD
         className="absolute right-4 top-12 bg-gray-800 text-gray-300 border border-gray-800 rounded-sm z-10"
+=======
+        className="absolute right-4 top-12 mt-2 ml-4 bg-[#628e3d] text-white  rounded-2xl hover:bg-gray-500 z-10"
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
         style={{
           display: showMenu ? "block" : "none",
         }}
@@ -63,7 +75,7 @@ export const PlaygroundDeviceSelector = ({
                 device.deviceId === deviceSelect.activeDeviceId
                   ? "text-white"
                   : "text-gray-500"
-              } bg-gray-900 text-xs py-2 px-2 cursor-pointer hover:bg-gray-800 hover:text-white`}
+              } flex  items-center px-2 py-2  bg-gray-500  text-white  rounded-2xl hover:bg-gray-500`}
               key={index}
             >
               {device.label}

@@ -38,8 +38,13 @@ export type UserSettings = {
 
 // Fallback if NEXT_PUBLIC_APP_CONFIG is not set
 const defaultConfig: AppConfig = {
+<<<<<<< HEAD
   title: "LiveKit Agents Playground",
   description: "A playground for testing LiveKit Agents",
+=======
+  title: "Green Light Ai Platform",
+  description: "Welcome to GreenLight AI Interview Platform",
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
   video_fit: "cover",
   settings: {
     editable: true,

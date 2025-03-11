@@ -2,7 +2,6 @@
 
 import { LoadingSVG } from "@/components/button/LoadingSVG";
 import { ChatMessageType } from "@/components/chat/ChatTile";
-import { ColorPicker } from "@/components/colorPicker/ColorPicker";
 import { AudioInputTile } from "@/components/config/AudioInputTile";
 import { ConfigurationPanelItem } from "@/components/config/ConfigurationPanelItem";
 import { NameValueRow } from "@/components/config/NameValueRow";
@@ -16,6 +15,7 @@ import { useConfig } from "@/hooks/useConfig";
 import { TranscriptionTile } from "@/transcriptions/TranscriptionTile";
 import {
   BarVisualizer,
+  TrackToggle,
   VideoTrack,
   useConnectionState,
   useDataChannel,
@@ -25,9 +25,8 @@ import {
   useVoiceAssistant,
 } from "@livekit/components-react";
 import { ConnectionState, LocalParticipant, Track } from "livekit-client";
-import { QRCodeSVG } from "qrcode.react";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import tailwindTheme from "../../lib/tailwindTheme.preval";
+import { PlaygroundDeviceSelector } from "./PlaygroundDeviceSelector";
 
 export interface PlaygroundMeta {
   name: string;
@@ -145,17 +144,16 @@ export default function Playground({
     );
   }, [agentVideoTrack, config, roomState]);
 
-  useEffect(() => {
-    document.body.style.setProperty(
-      "--lk-theme-color",
-      // @ts-ignore
-      tailwindTheme.colors[config.settings.theme_color]["500"]
-    );
-    document.body.style.setProperty(
-      "--lk-drop-shadow",
-      `var(--lk-theme-color) 0px 0px 18px`
-    );
-  }, [config.settings.theme_color]);
+  // // useEffect(() => {
+  // //   document.body.style.setProperty(
+  // //     "--lk-theme-color",
+  // //     // @ts-ignore
+  // //   );
+  //   document.body.style.setProperty(
+  //     "--lk-drop-shadow",
+  //     `var(--lk-theme-color) 0px 0px 18px`
+  //   );
+  // }, [config.settings.theme_color]);
 
   const audioTileContent = useMemo(() => {
     const disconnectedContent = (
@@ -209,17 +207,18 @@ export default function Playground({
         />
       );
     }
+
     return <></>;
   }, [config.settings.theme_color, voiceAssistant.audioTrack]);
 
   const settingsTileContent = useMemo(() => {
     return (
       <div className="flex flex-col gap-4 h-full w-full items-start overflow-y-auto">
-        {config.description && (
+        {/* {config.description && (
           <ConfigurationPanelItem title="Description">
             {config.description}
           </ConfigurationPanelItem>
-        )}
+        )} */}
 
         <ConfigurationPanelItem title="Settings">
           {localParticipant && (
@@ -235,7 +234,39 @@ export default function Playground({
               />
             </div>
           )}
+<<<<<<< HEAD
         </ConfigurationPanelItem>
+=======
+        </ConfigurationPanelItem> */}
+        {config.settings.chat && (
+          <ConfigurationPanelItem title="Agent">
+            {chatTileContent}
+          </ConfigurationPanelItem>
+        )}
+
+        {localMicTrack && (
+          <ConfigurationPanelItem
+            title="Voice Input"
+            deviceSelectorKind="audioinput"
+          >
+            <AudioInputTile trackRef={localMicTrack} />
+          </ConfigurationPanelItem>
+        )}
+
+        {/* <div className="w-full">
+          <ConfigurationPanelItem title="Color">
+            <ColorPicker
+              colors={themeColors}
+              selectedColor={config.settings.theme_color}
+              onSelect={(color) => {
+                const userSettings = { ...config.settings };
+                userSettings.theme_color = color;
+                setUserSettings(userSettings);
+              }}
+            />
+          </ConfigurationPanelItem>
+        </div> */}
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
         <ConfigurationPanelItem title="Status">
           <div className="flex flex-col gap-2">
             <NameValueRow
@@ -264,6 +295,7 @@ export default function Playground({
                   "FALSE"
                 )
               }
+<<<<<<< HEAD
               valueColor={
                 voiceAssistant.agent
                   ? `${config.settings.theme_color}-500`
@@ -313,6 +345,12 @@ export default function Playground({
             </ConfigurationPanelItem>
           </div>
         )}
+=======
+              valueColor={voiceAssistant.agent ? `[#628e3d] text` : "gray-500"}
+            />
+          </div>
+        </ConfigurationPanelItem>
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
       </div>
     );
   }, [
@@ -396,7 +434,7 @@ export default function Playground({
         className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`}
         style={{ height: `calc(100% - ${headerHeight}px)` }}
       >
-        <div className="flex flex-col grow basis-1/2 gap-4 h-full lg:hidden">
+        <div className="flex flex-col grow basis-1/2 h-full lg:hidden">
           <PlaygroundTabbedTile
             className="h-full"
             tabs={mobileTabs}
@@ -410,7 +448,48 @@ export default function Playground({
               : "flex"
           }`}
         >
+<<<<<<< HEAD
           {config.settings.outputs.video && (
+=======
+          {localVideoTrack && (
+            <div className="relative">
+              <VideoTrack
+                className="rounded-md border border-gray-800 opacity-70 overflow-hidden w-full h-full object-cover"
+                trackRef={localVideoTrack}
+              />
+
+              <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-2 bg-gradient-to-t from-black/20 via-transparent to-transparent">
+                <h3 className="text-white text-lg font-bold">{"Candidate"}</h3>
+
+                <span className="flex flex-row gap-2">
+                  <TrackToggle
+                    className="px-2  bg-[#628e3d] text-gray-300 border   border-gray-800 rounded-2xl hover:bg-gray-500"
+                    source={Track.Source.Camera}
+                  />
+
+                  <PlaygroundDeviceSelector kind="videoinput" />
+                  {isRecording ? (
+                    <button
+                      className="bg-red-500 text-white px-4 py-1 rounded-2xl "
+                      onClick={stopRecording}
+                    >
+                      Stop Recording
+                    </button>
+                  ) : (
+                    <button
+                      className="bg-[#628e3d] text-white px-4 py-1 rounded-2xl "
+                      onClick={startRecording}
+                    >
+                      Start Recording
+                    </button>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* {config.settings.outputs.video && (
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
             <PlaygroundTile
               title="Video"
               className="w-full h-full grow"
@@ -440,8 +519,13 @@ export default function Playground({
         )}
         <PlaygroundTile
           padding={false}
+<<<<<<< HEAD
           backgroundColor="gray-950"
           className="h-full w-full basis-1/4 items-start overflow-y-auto hidden max-w-[480px] lg:flex"
+=======
+          backgroundColor="white"
+          className="h-full w-full basis-1/4 items-start overflow-y-auto hidden max-w-[480px] lg:flex rounded-md "
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
           childrenClassName="h-full grow items-start"
         >
           {settingsTileContent}

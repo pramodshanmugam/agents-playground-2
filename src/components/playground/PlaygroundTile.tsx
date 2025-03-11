@@ -21,7 +21,12 @@ export type PlaygroundTabbedTileProps = {
   initialTab?: number;
 } & PlaygroundTileProps;
 
+<<<<<<< HEAD
 export const PlaygroundTile: React.FC<PlaygroundTileProps> = ({
+=======
+// PlaygroundTile component for rendering tiles with an optional title
+export const  PlaygroundTile: React.FC<PlaygroundTileProps> = ({
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
   children,
   title,
   className,
@@ -32,7 +37,11 @@ export const PlaygroundTile: React.FC<PlaygroundTileProps> = ({
   const contentPadding = padding ? 4 : 0;
   return (
     <div
+<<<<<<< HEAD
       className={`flex flex-col border rounded-sm border-gray-800 text-gray-500 bg-${backgroundColor} ${className}`}
+=======
+      className={`flex flex-col border rounded-md text-gray-500 bg-${backgroundColor} ${className}`}
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
     >
       {title && (
         <div
@@ -71,7 +80,11 @@ export const PlaygroundTabbedTile: React.FC<PlaygroundTabbedTileProps> = ({
   }
   return (
     <div
+<<<<<<< HEAD
       className={`flex flex-col h-full border rounded-sm border-gray-800 text-gray-500 bg-${backgroundColor} ${className}`}
+=======
+      className={`flex flex-col h-full border rounded-2xl  border-[#628e3d] text-gray-500 bg-gray-300 ${className}`}
+>>>>>>> 382e5e3 (Ui Updated For Ai Interview)
     >
       <div
         className="flex items-center justify-start text-xs uppercase border-b border-b-gray-800 tracking-wider"
