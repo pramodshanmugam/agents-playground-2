@@ -11,8 +11,8 @@ import {
   useLocalParticipant,
   useTracks,
   useVoiceAssistant,
-  TrackToggle,
 } from "@livekit/components-react";
+import { MuteButton } from "./MuteButton";
 import { ConnectionState, Track } from "livekit-client";
 import { ReactNode, useEffect, useMemo } from "react";
 import tailwindTheme from "../../lib/tailwindTheme.preval";
@@ -140,34 +140,34 @@ export default function Playground({
         }
       />
       <div
-        className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900`}
+        className={`flex gap-4 py-4 grow w-full selection:bg-${config.settings.theme_color}-900 justify-center`}
         style={{ height: `calc(100% - ${headerHeight}px)` }}
       >
-        {/* Video Section - Main area */}
-        <div className="flex flex-col grow basis-2/3 gap-4 h-full">
-          <PlaygroundTile
-            className="w-full h-full grow"
-            childrenClassName="justify-center"
-          >
-            {videoTileContent}
-          </PlaygroundTile>
-          {/* Mute Button */}
-          <div className="flex justify-center items-center py-2">
-            <TrackToggle
-              source={Track.Source.Microphone}
-              className="px-6 py-3 bg-gray-900 text-white border border-gray-800 rounded-md hover:bg-gray-800 transition-colors"
-            />
+        <div className="flex gap-4 w-1/4">
+          {/* Video Section - Main area */}
+          <div className="flex flex-col grow gap-4 h-full">
+            <PlaygroundTile
+              className="w-full h-full grow"
+              childrenClassName="justify-center"
+              padding={false}
+            >
+              {videoTileContent}
+            </PlaygroundTile>
+            {/* Mute Button */}
+            <div className="flex justify-center items-center py-2">
+              <MuteButton />
+            </div>
           </div>
-        </div>
 
-        {/* Chat Section */}
-        {config.settings.chat && (
-          <PlaygroundTile
-            className="h-full grow basis-1/3"
-          >
-            {chatTileContent}
-          </PlaygroundTile>
-        )}
+          {/* Chat Section */}
+          {/* {config.settings.chat && (
+            <PlaygroundTile
+              className="h-full grow basis-3/5"
+            >
+              {chatTileContent}
+            </PlaygroundTile>
+          )} */}
+        </div>
       </div>
     </>
   );
