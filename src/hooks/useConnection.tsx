@@ -15,6 +15,7 @@ type TokenGeneratorData = {
   mode: ConnectionMode;
   disconnect: () => Promise<void>;
   connect: (mode: ConnectionMode) => Promise<void>;
+  directConnect: (wsUrl: string, token: string) => void;
 };
 
 const ConnectionContext = createContext<TokenGeneratorData | undefined>(
@@ -120,6 +121,10 @@ export const ConnectionProvider = ({
     setConnectionDetails((prev) => ({ ...prev, shouldConnect: false }));
   }, []);
 
+  const directConnect = useCallback((wsUrl: string, token: string) => {
+    setConnectionDetails({ wsUrl, token, shouldConnect: true, mode: "env" });
+  }, []);
+
   return (
     <ConnectionContext.Provider
       value={{
@@ -129,6 +134,7 @@ export const ConnectionProvider = ({
         mode: connectionDetails.mode,
         connect,
         disconnect,
+        directConnect,
       }}
     >
       {children}

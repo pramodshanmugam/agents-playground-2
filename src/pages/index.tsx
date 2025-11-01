@@ -8,7 +8,7 @@ import { Inter } from "next/font/google";
 import Head from "next/head";
 import { useCallback, useState } from "react";
 
-import { PlaygroundConnect } from "@/components/PlaygroundConnect";
+import { OneClickConnect } from "@/components/OneClickConnect";
 import Playground from "@/components/playground/Playground";
 import { PlaygroundToast, ToastType } from "@/components/toast/PlaygroundToast";
 import { ConfigProvider, useConfig } from "@/hooks/useConfig";
@@ -47,7 +47,7 @@ export default function Home() {
 }
 
 export function HomeInner() {
-  const { shouldConnect, wsUrl, token, mode, connect, disconnect } =
+  const { shouldConnect, wsUrl, token, mode, connect, disconnect, directConnect } =
     useConnection();
 
   const { config } = useConfig();
@@ -125,10 +125,10 @@ export function HomeInner() {
             <StartAudio label="Click to enable audio playback" />
           </LiveKitRoom>
         ) : (
-          <PlaygroundConnect
+          <OneClickConnect
             accentColor={themeColors[0]}
-            onConnectClicked={(mode) => {
-              handleConnect(true, mode);
+            onConnect={(wsUrl, token) => {
+              directConnect(wsUrl, token);
             }}
           />
         )}
