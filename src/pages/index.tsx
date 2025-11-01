@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useConnection";
 import { useMemo } from "react";
 import { ToastProvider, useToast } from "@/components/toast/ToasterProvider";
+import { AvatalkLogo } from "@/components/playground/AvatalkLogo";
 
 const themeColors = [
   "cyan",
@@ -82,7 +83,7 @@ export function HomeInner() {
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta
           property="og:image"
-          content="https://livekit.io/images/og/agents-playground.png"
+          content="/logo.svg"
         />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
@@ -113,6 +114,7 @@ export function HomeInner() {
             }}
           >
             <Playground
+              logo={<AvatalkLogo />}
               themeColors={themeColors}
               onConnect={(c) => {
                 const m = process.env.NEXT_PUBLIC_LIVEKIT_URL ? "env" : mode;

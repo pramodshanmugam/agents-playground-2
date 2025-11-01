@@ -51,3 +51,16 @@ body {
     opacity: 1;
   }
 }
+
+.avatalk-logo-container {
+  display: flex;
+  align-items: center;
+}
+
+.avatalk-logo-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 106px;
+  object-fit: contain;
+}
