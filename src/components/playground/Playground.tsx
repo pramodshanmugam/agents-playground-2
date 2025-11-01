@@ -44,9 +44,18 @@ export default function Playground({
   const tracks = useTracks();
 
   useEffect(() => {
-    if (roomState === ConnectionState.Connected) {
-      localParticipant.setCameraEnabled(false);
-      localParticipant.setMicrophoneEnabled(true);
+    if (
+      roomState === ConnectionState.Connected &&
+      localParticipant &&
+      typeof localParticipant.setCameraEnabled === "function" &&
+      typeof localParticipant.setMicrophoneEnabled === "function"
+    ) {
+      try {
+        localParticipant.setCameraEnabled(false);
+        localParticipant.setMicrophoneEnabled(true);
+      } catch (error) {
+        console.error("Error setting camera/microphone:", error);
+      }
     }
   }, [localParticipant, roomState]);
 
