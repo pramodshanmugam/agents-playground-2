@@ -2,9 +2,9 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { generateRandomAlphanumeric } from "@/lib/util";
 
 import { AccessToken } from "livekit-server-sdk";
-import { RoomAgentDispatch, RoomConfiguration } from "@livekit/protocol";
 import type { AccessTokenOptions, VideoGrant } from "livekit-server-sdk";
 import { TokenResult } from "../../lib/types";
+import { RoomAgentDispatch, RoomConfiguration } from "@livekit/protocol";
 
 const apiKey = process.env.LIVEKIT_API_KEY;
 const apiSecret = process.env.LIVEKIT_API_SECRET;
@@ -17,6 +17,8 @@ const createToken = (
   const at = new AccessToken(apiKey, apiSecret, userInfo);
   at.addGrant(grant);
   if (agentName) {
+    // Type assertion to work around version mismatch between @livekit/protocol versions
+    // The runtime types are compatible, just TypeScript sees them as different
     at.roomConfig = new RoomConfiguration({
       agents: [
         new RoomAgentDispatch({
@@ -24,7 +26,7 @@ const createToken = (
           metadata: '{"user_id": "12345"}',
         }),
       ],
-    });
+    }) as any;
   }
   return at.toJwt();
 };
