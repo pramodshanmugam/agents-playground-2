@@ -1,21 +1,44 @@
 import { useLocalParticipant } from "@livekit/components-react";
 import { Track } from "livekit-client";
+import { useState } from "react";
 
 export const MuteButton = () => {
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const [error, setError] = useState<string | null>(null);
 
   const toggleMicrophone = async () => {
-    if (localParticipant) {
+    setError(null);
+    
+    if (!localParticipant) {
+      setError("Not connected to room");
+      return;
+    }
+
+    try {
+      // Enable/disable microphone - this will trigger browser permission popup if not already granted
       await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+    } catch (error: any) {
+      console.error("Error toggling microphone:", error);
+      
+      // Handle specific permission errors
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError' || 
+          error.message?.includes('permission') || error.message?.includes('NotAllowed')) {
+        setError("Microphone blocked. Click the lock icon in address bar → Reset permissions → Allow microphone");
+      } else if (error.name === 'NotFoundError' || error.message?.includes('not found')) {
+        setError("No microphone found on this device");
+      } else {
+        setError(error.message || "Failed to toggle microphone");
+      }
     }
   };
 
   return (
-    <button
-      onClick={toggleMicrophone}
-      className="px-6 py-3 bg-gray-900 text-white border border-gray-800 rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2"
-      aria-label={isMicrophoneEnabled ? "Mute microphone" : "Unmute microphone"}
-    >
+    <div className="relative">
+      <button
+        onClick={toggleMicrophone}
+        className="px-6 py-3 bg-gray-900 text-white border border-gray-800 rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2"
+        aria-label={isMicrophoneEnabled ? "Mute microphone" : "Unmute microphone"}
+      >
       {isMicrophoneEnabled ? (
         // Unmuted - Show microphone icon
         <svg
@@ -53,7 +76,13 @@ export const MuteButton = () => {
         </svg>
       )}
       <span>{isMicrophoneEnabled ? "Unmuted" : "Muted"}</span>
-    </button>
+      </button>
+      {error && (
+        <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-red-900 text-white text-xs px-3 py-2 rounded shadow-lg z-10 whitespace-nowrap">
+          {error}
+        </div>
+      )}
+    </div>
   );
 };
 

@@ -44,17 +44,21 @@ export default function Playground({
   const tracks = useTracks();
 
   useEffect(() => {
+    // Only disable camera automatically - microphone requires user permission
+    // Browsers require user interaction (click) before granting mic access
+    // So we let the user enable mic via the mute button which requires a click
     if (
       roomState === ConnectionState.Connected &&
       localParticipant &&
-      typeof localParticipant.setCameraEnabled === "function" &&
-      typeof localParticipant.setMicrophoneEnabled === "function"
+      typeof localParticipant.setCameraEnabled === "function"
     ) {
       try {
+        // Disable camera (doesn't require permission)
         localParticipant.setCameraEnabled(false);
-        localParticipant.setMicrophoneEnabled(true);
+        // Don't auto-enable microphone - user must click mute button
+        // This ensures browser permission prompt works properly
       } catch (error) {
-        console.error("Error setting camera/microphone:", error);
+        console.warn("Could not disable camera:", error);
       }
     }
   }, [localParticipant, roomState]);
